@@ -346,7 +346,9 @@ def detect_gesture(lm):
     middle_ext = _extended(lm, 12, 10)
     ring_ext   = _extended(lm, 16, 14)
     pinky_ext  = _extended(lm, 20, 18)
-    thumb_up   = lm[4].y < lm[3].y and lm[4].y < lm[2].y
+    # Pouce vraiment levé : tip au-dessus de ses articulations ET au-dessus
+    # du MCP de l'index (landmark 5) — écarte le cas du pouce replié sur le poing
+    thumb_up   = lm[4].y < lm[3].y and lm[4].y < lm[2].y and lm[4].y < lm[5].y
 
     # Pouce levé : pouce vers le haut, 4 doigts repliés
     if thumb_up and not index_ext and not middle_ext and not ring_ext and not pinky_ext:
