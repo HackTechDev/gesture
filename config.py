@@ -89,6 +89,12 @@ THUMB_SPREAD_THRESHOLD   = 0.13  # distance normalisée tip→MCP pour pouce éc
 FINGERS_TOGETHER_THRESHOLD = 0.07  # distance normalisée index→majeur "collés"
 
 # ---------------------------------------------------------------------------
+# Démo H — Bulle d'eau modelable
+# ---------------------------------------------------------------------------
+BUBBLE_H_MIN_R = 60    # rayon minimal (pixels)
+BUBBLE_H_MAX_R = 240   # rayon maximal (pixels)
+
+# ---------------------------------------------------------------------------
 # Démo G — Traînées de mouvement
 # ---------------------------------------------------------------------------
 TRAIL_LENGTH = 22   # positions mémorisées par doigt

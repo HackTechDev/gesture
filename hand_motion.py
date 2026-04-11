@@ -14,6 +14,7 @@ import demo_c
 import demo_d
 import demo_f
 import demo_g
+import demo_h
 from config import (
     CAMERA_INDEX, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS,
     MOVEMENT_THRESHOLD, FPS_SMOOTHING,
@@ -142,6 +143,10 @@ def main():
     show_g        = False
     trail_history = {}
 
+    # --- Démo H ---
+    show_h   = False
+    bubble_h = None
+
     with HandLandmarker.create_from_options(options) as landmarker:
         while True:
             ret, frame = cap.read()
@@ -243,6 +248,10 @@ def main():
             if show_g:
                 demo_g.render(frame, trail_history, active_ids, w, h)
 
+            if show_h and bubble_h is not None:
+                demo_h.update(bubble_h, hands_by_side, w, h)
+                demo_h.render(frame, bubble_h, hands_by_side, w, h)
+
             # --- UI ---
             cv2.rectangle(frame, (0, h - 42), (w, h), (30, 30, 30), -1)
             cv2.putText(frame, status_text, (10, h - 12),
@@ -255,14 +264,15 @@ def main():
                 ("Dessin",     show_d),
                 ("Gestes",     show_f),
                 ("Trainées",   show_g),
+                ("Bulle eau",  show_h),
             ]):
                 color = (0, 220, 255) if active else (120, 120, 120)
                 state = "ON" if active else "OFF"
                 cv2.putText(frame, f"{label} : {state}", (10, 28 + row * 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes g:trainées q:quitter",
-                        (w - 720, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.44, (180, 180, 180), 1)
+            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes g:trainées h:bulle q:quitter",
+                        (w - 790, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (180, 180, 180), 1)
 
             # --- FPS ---
             if len(fps_times) >= 2:
@@ -311,6 +321,12 @@ def main():
                 show_g = not show_g
                 if not show_g:
                     trail_history.clear()
+            elif key == ord("h"):
+                show_h = not show_h
+                if show_h:
+                    bubble_h = demo_h.new_bubble_h()
+                else:
+                    bubble_h = None
 
     cap.release()
     cv2.destroyAllWindows()

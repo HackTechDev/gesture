@@ -47,6 +47,7 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 | `d` | Activer / désactiver le dessin dans l'air |
 | `f` | Activer / désactiver la reconnaissance de gestes |
 | `g` | Activer / désactiver les traînées de mouvement sur les doigts |
+| `h` | Activer / désactiver la bulle d'eau modelable |
 | `q` | Quitter l'application |
 
 ---
@@ -64,6 +65,7 @@ Le projet est découpé en plusieurs fichiers, un par démo :
 | `demo_d.py` | Démo D — dessin dans l'air avec l'index, effacement main ouverte, palette de couleurs |
 | `demo_f.py` | Démo F — reconnaissance de gestes (Pouce levé, Victoire, Poing, Main ouverte, Index pointé, Metal) |
 | `demo_g.py` | Démo G — traînées de mouvement lumineuses sur les 5 bouts de doigts |
+| `demo_h.py` | Démo H — bulle d'eau en apesanteur modelable avec les deux mains |
 
 Fonctions utilitaires dans `hand_motion.py` :
 
@@ -109,6 +111,13 @@ Fonctions utilitaires dans `hand_motion.py` :
 - Une **palette de 6 couleurs** est affichée en haut à droite ; pointer l'**auriculaire** (landmark 20) dessus change la couleur active (encadrée en blanc).
 - Le dessin persiste sur un calque fusionné additivement sur la frame (zones noires = transparentes).
 - Paramètres : `DRAW_COLORS` (liste de couleurs BGR), `DRAW_THICKNESS` (épaisseur du trait).
+
+**Démo H — Bulle d'eau modelable (touche `h`)**
+- Nécessite les **deux mains** visibles : la bulle apparaît au point médian entre les deux paumes et disparaît en fondu si une main quitte le champ.
+- **Taille** : pilotée par l'écartement entre les mains — écarter les mains gonfle la bulle, les rapprocher la rétrécit (rayon entre `BUBBLE_H_MIN_R` et `BUBBLE_H_MAX_R`).
+- **Position** : suit le centre des deux paumes avec un ressort amorti (`_SPRING_K`, `_SPRING_D`) pour un mouvement fluide.
+- **Modelage** : chaque paume qui touche la surface crée une indentation (cuvette sombre avec bord lumineux et mini-bulle d'air intérieure).
+- Rendu eau en 9 couches : halo gaussien additif, corps translucide, volume intérieur, 5 caustiques animées, indentations, rim Fresnel, surbrillance spéculaire principale et secondaire, contour final.
 
 **Démo G — Traînées de mouvement (touche `g`)**
 - Chaque bout de doigt (pouce, index, majeur, annulaire, auriculaire) laisse une traînée lumineuse sur les `TRAIL_LENGTH` dernières positions (défaut : 22 frames).

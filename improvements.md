@@ -12,6 +12,12 @@
 - [ ] Plusieurs bulles qui se percutent entre elles (collisions inter-bulles)
 - [ ] Obstacles fixes sur l'écran à éviter
 
+## Démo H — Bulle d'eau
+
+- [ ] Plusieurs bulles simultanées qui rebondissent entre elles
+- [ ] Gravité légère (la bulle tombe doucement si les mains s'éloignent)
+- [ ] Éclater la bulle en pinçant les deux mains ensemble
+
 ## Nouvelles démos
 
 - [x] Démo D — Dessin dans l'air : tracer avec l'index, effacer en ouvrant la main
