@@ -1,3 +1,5 @@
+import urllib.request
+import os
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python as mp_python
@@ -8,7 +10,13 @@ HandLandmarker = vision.HandLandmarker
 HandLandmarkerOptions = vision.HandLandmarkerOptions
 VisionRunningMode = vision.RunningMode
 
-MODEL_PATH = "hand_landmarker.task"
+# --- Modèle ---
+MODEL_PATH = "hand_landmarker_full.task"
+MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/"
+    "hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task"
+)
+
 MOVEMENT_THRESHOLD = 15  # pixels
 
 HAND_CONNECTIONS = [
@@ -19,6 +27,22 @@ HAND_CONNECTIONS = [
     (13, 17), (17, 18), (18, 19), (19, 20),
     (0, 17),
 ]
+
+clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+
+
+def download_model():
+    if not os.path.exists(MODEL_PATH):
+        print(f"Téléchargement du modèle vers {MODEL_PATH} ...")
+        urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+        print("Modèle téléchargé.")
+
+
+def enhance_frame(frame):
+    """Égalisation CLAHE sur le canal L pour compenser l'éclairage inégal."""
+    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+    lab[:, :, 0] = clahe.apply(lab[:, :, 0])
+    return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
 
 
 def draw_hand(frame, hand_landmarks, w, h):
@@ -36,19 +60,26 @@ def palm_center(hand_landmarks, w, h):
 
 
 def main():
+    download_model()
+
     options = HandLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=MODEL_PATH),
-        running_mode=VisionRunningMode.IMAGE,
+        running_mode=VisionRunningMode.VIDEO,   # suivi temporel activé
         num_hands=2,
-        min_hand_detection_confidence=0.7,
-        min_hand_presence_confidence=0.6,
-        min_tracking_confidence=0.6,
+        min_hand_detection_confidence=0.5,
+        min_hand_presence_confidence=0.5,
+        min_tracking_confidence=0.5,
     )
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("Erreur : impossible d'ouvrir la webcam.")
         return
+
+    # Qualité de capture
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FPS, 30)
 
     prev_positions = {}
 
@@ -58,14 +89,18 @@ def main():
             if not ret:
                 break
 
+            timestamp_ms = int(cap.get(cv2.CAP_PROP_POS_MSEC))
             frame = cv2.flip(frame, 1)
             h, w = frame.shape[:2]
 
+            # Prétraitement éclairage
+            enhanced = enhance_frame(frame)
+
             mp_image = mp.Image(
                 image_format=mp.ImageFormat.SRGB,
-                data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+                data=cv2.cvtColor(enhanced, cv2.COLOR_BGR2RGB),
             )
-            results = landmarker.detect(mp_image)
+            results = landmarker.detect_for_video(mp_image, timestamp_ms)
 
             status_text = "Aucune main detectee"
             status_color = (200, 200, 200)
