@@ -48,7 +48,9 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 | `f` | Activer / désactiver la reconnaissance de gestes |
 | `g` | Activer / désactiver les traînées de mouvement sur les doigts |
 | `h` | Activer / désactiver la bulle d'eau modelable |
+| `k` | Activer / désactiver la galaxie spirale 3D |
 | `i` | Afficher / masquer le squelette de la main (traits, points, flèche) |
+| `j` | Basculer en plein écran / fenêtré |
 | `q` | Quitter l'application |
 
 ---
@@ -67,6 +69,7 @@ Le projet est découpé en plusieurs fichiers, un par démo :
 | `demo_f.py` | Démo F — reconnaissance de gestes (Pouce levé, Victoire, Poing, Main ouverte, Index pointé, Metal) |
 | `demo_g.py` | Démo G — traînées de mouvement lumineuses sur les 5 bouts de doigts |
 | `demo_h.py` | Démo H — bulle d'eau 3D en apesanteur modelable avec les deux mains |
+| `demo_k.py` | Démo K — galaxie spirale 3D tournante, déplaçable et inclinable avec les deux mains |
 | `config.py` | Tous les paramètres ajustables centralisés (caméra, MediaPipe, démos) |
 
 Fonctions utilitaires dans `hand_motion.py` :
@@ -125,6 +128,17 @@ Fonctions utilitaires dans `hand_motion.py` :
 - Rendu sphère 3D en 9 couches : halo gaussien additif, corps translucide, face illuminée décalée (volume), cœur lumineux, limb darkening (bords assombris), 5 caustiques animées, rim Fresnel, surbrillances spéculaires, contour final déformé.
 - Conseil : combiner avec `i` pour masquer le squelette et profiter pleinement de l'effet.
 - Paramètres dans `config.py` : `BUBBLE_H_MIN_R`, `BUBBLE_H_MAX_R`.
+
+**Démo K — Galaxie spirale 3D (touche `k`)**
+- Nécessite les **deux mains** simultanément : la galaxie apparaît au point milieu entre les deux paumes.
+- **Position** : suit le centre des deux paumes avec un ressort amorti.
+- **Taille** : proportionnelle à la distance entre les deux mains (`dist × 0.92`, clampée entre 80 et 340 px de scale).
+- **Inclinaison (pitch)** : déterminée par l'angle de la ligne main-gauche → main-droite ; permet de voir la galaxie de face ou de côté.
+- **Rotation (yaw)** : spin automatique continu à 0.45 rad/s — la galaxie tourne sur elle-même sans intervention.
+- Structure : 1500 étoiles (55 % bras spiraux, 20 % disque diffus, 20 % bulbe central, 5 % géantes rouges) + 20 nébuleuses colorées le long des bras.
+- Rendu 3D par tri de profondeur (`np.argsort`) et facteur de luminosité selon la coordonnée Z.
+- Performance : les étoiles de taille 1 (≈ 1 200) sont dessinées en batch NumPy direct sur le buffer de frame ; les étoiles de taille 2+ utilisent `cv2.circle`.
+- Conseil : combiner avec `i` pour masquer le squelette et profiter pleinement de l'effet.
 
 **Démo G — Traînées de mouvement (touche `g`)**
 - Chaque bout de doigt (pouce, index, majeur, annulaire, auriculaire) laisse une traînée lumineuse sur les `TRAIL_LENGTH` dernières positions (défaut : 22 frames).

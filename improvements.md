@@ -28,6 +28,7 @@
 - [x] Démo F — Reconnaissance de gestes : détecter des formes précises (pouce levé, poing, victoire) et afficher leur nom
 - [x] Démo F — Geste Dr Strange : cercle magique animé (pentagramme + runes + étincelles) adapté à la taille de la main
 - [x] Démo G — Traînées de mouvement (motion trail) sur les 5 bouts de doigts avec halo néon
+- [x] Démo K — Galaxie spirale 3D en couleur tournante entre les mains, déplaçable et inclinable
 
 ## Qualité visuelle
 
@@ -38,6 +39,7 @@
 ## Interface
 
 - [x] Touche `i` : masquer / afficher le squelette de la main
+- [x] Touche `j` : basculer en plein écran / fenêtré
 
 ## Architecture
 
