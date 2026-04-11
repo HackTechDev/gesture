@@ -44,6 +44,7 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 | `a` | Activer / désactiver les filaments lumineux entre les deux mains |
 | `b` | Activer / désactiver la démo bulles à éclater |
 | `c` | Activer / désactiver la démo bulle physique |
+| `d` | Activer / désactiver le dessin dans l'air |
 | `q` | Quitter l'application |
 
 ---
@@ -58,6 +59,7 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 | `draw_filaments()` | Démo A — filaments néon entre les extrémités des deux mains |
 | `new_bubble()` / `draw_bubble()` / `draw_pop()` | Démo B — bulle brillante à éclater par pincement |
 | `new_bubble_c()` / `push_bubble_c()` / `update_bubble_c()` / `draw_bubble_c()` | Démo C — bulle avec physique poussée par l'index |
+| `is_index_only()` / `is_open_hand()` / `draw_palette()` | Démo D — détection des gestes de dessin et effacement |
 | `main()` | Boucle principale : capture webcam, détection MediaPipe, rendu, touches |
 
 ---
@@ -87,3 +89,10 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 - La bulle rebondit sur les 4 bords et ralentit progressivement (`DAMPING = 0.97`).
 - Un cercle translucide indique la zone de contact ; une flèche montre la vitesse courante.
 - Paramètres : `PUSH_FACTOR`, `PUSH_RADIUS`, `DAMPING`, `MAX_VEL`.
+
+**Démo D — Dessin dans l'air (touche `d`)**
+- **Index seul étendu** (majeur/annulaire/auriculaire repliés) → mode dessin : une ligne est tracée entre la position courante et la précédente de l'index (landmark 8).
+- **Main ouverte** (4 doigts étendus) → effacement complet du canvas avec un flash blanc animé.
+- Une **palette de 6 couleurs** est affichée en haut à droite ; pointer l'index dessus change la couleur active (encadrée en blanc).
+- Le dessin persiste sur un calque fusionné additivement sur la frame (zones noires = transparentes).
+- Paramètres : `DRAW_COLORS` (liste de couleurs BGR), `DRAW_THICKNESS` (épaisseur du trait).

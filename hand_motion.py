@@ -27,6 +27,17 @@ POP_DURATION       = 18   # frames d'animation d'éclatement
 BUBBLE_COUNT       = 5    # nombre de bulles simultanées (démo B)
 GAME_DURATION      = 30   # secondes par partie (démo B)
 
+# Démo D — dessin dans l'air
+DRAW_COLORS = [
+    (255, 255, 255),  # blanc
+    (100, 255, 100),  # vert
+    (100, 100, 255),  # rouge
+    (0,   220, 255),  # jaune
+    (255, 100, 200),  # violet
+    (50,  200, 255),  # orange
+]
+DRAW_THICKNESS = 3
+
 # Démo C — bulle physique
 BUBBLE_RADIUS_C = 50
 PUSH_RADIUS     = BUBBLE_RADIUS_C + 50  # zone de contact autour de la bulle
@@ -181,6 +192,42 @@ def draw_pop(frame, pop):
 
 
 # ---------------------------------------------------------------------------
+# Dessin dans l'air (démo D)
+# ---------------------------------------------------------------------------
+
+def is_index_only(lm):
+    """Index étendu, majeur/annulaire/auriculaire repliés."""
+    return (lm[8].y  < lm[6].y  and
+            lm[12].y > lm[10].y and
+            lm[16].y > lm[14].y and
+            lm[20].y > lm[18].y)
+
+
+def is_open_hand(lm):
+    """Les 4 doigts étendus = main ouverte → effacer."""
+    return (lm[8].y  < lm[6].y  and
+            lm[12].y < lm[10].y and
+            lm[16].y < lm[14].y and
+            lm[20].y < lm[18].y)
+
+
+def draw_palette(frame, color_idx, w):
+    """Barre de couleurs en haut à droite pour la démo D."""
+    sw = 28  # largeur d'un carré
+    gap = 4
+    total = len(DRAW_COLORS) * (sw + gap) - gap
+    x0 = w - total - 10
+    y0 = 40
+    for i, color in enumerate(DRAW_COLORS):
+        x = x0 + i * (sw + gap)
+        cv2.rectangle(frame, (x, y0), (x + sw, y0 + sw), color, -1)
+        if i == color_idx:
+            cv2.rectangle(frame, (x - 2, y0 - 2), (x + sw + 2, y0 + sw + 2),
+                          (255, 255, 255), 2)
+    return x0, y0, sw, gap
+
+
+# ---------------------------------------------------------------------------
 # Bulle physique (démo C — poussée par l'index)
 # ---------------------------------------------------------------------------
 
@@ -317,6 +364,11 @@ def main():
     show_demo_c     = False
     bubble_c        = None
     prev_index_c    = {}      # idx -> (x, y) frame précédente
+    show_demo_d     = False
+    canvas          = None    # calque de dessin persistant
+    prev_draw_pos   = {}      # idx -> (x, y) frame précédente
+    draw_color_idx  = 0       # index dans DRAW_COLORS
+    erase_flash     = 0       # nb de frames du flash d'effacement
 
     with HandLandmarker.create_from_options(options) as landmarker:
         while True:
@@ -363,6 +415,42 @@ def main():
                 if results.handedness and idx < len(results.handedness):
                     side = results.handedness[idx][0].display_name
                     hands_by_side[side] = hand_landmarks
+
+                # --- Démo D : dessin dans l'air ---
+                if show_demo_d and canvas is not None:
+                    ix = int(hand_landmarks[8].x * w)
+                    iy = int(hand_landmarks[8].y * h)
+                    color = DRAW_COLORS[draw_color_idx]
+
+                    if is_open_hand(hand_landmarks):
+                        canvas[:] = 0          # effacement complet
+                        erase_flash = 12
+                        prev_draw_pos.pop(idx, None)
+
+                        # Sélection couleur si index pointe sur la palette
+                    elif is_index_only(hand_landmarks):
+                        # Vérifier si l'index pointe sur un carré de couleur
+                        x0, y0, sw, gap = draw_palette(frame, draw_color_idx, w)
+                        picked = False
+                        for i in range(len(DRAW_COLORS)):
+                            px = x0 + i * (sw + gap)
+                            if px <= ix <= px + sw and y0 <= iy <= y0 + sw:
+                                draw_color_idx = i
+                                prev_draw_pos.pop(idx, None)
+                                picked = True
+                                break
+
+                        if not picked:
+                            if idx in prev_draw_pos:
+                                cv2.line(canvas, prev_draw_pos[idx], (ix, iy),
+                                         color, DRAW_THICKNESS)
+                            prev_draw_pos[idx] = (ix, iy)
+
+                        # Curseur à l'extrémité de l'index
+                        cv2.circle(frame, (ix, iy), 8, color, -1)
+                        cv2.circle(frame, (ix, iy), 8, (255, 255, 255), 1)
+                    else:
+                        prev_draw_pos.pop(idx, None)
 
                 # --- Démo C : poussée de la bulle par l'index ---
                 if show_demo_c and bubble_c is not None:
@@ -437,6 +525,20 @@ def main():
                 cv2.putText(frame, f"Score : {score}", (w//2 + 160, 27),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (100, 255, 180), 2)
 
+            # --- Démo D : rendu du canvas + flash effacement ---
+            if show_demo_d and canvas is not None:
+                frame[:] = cv2.add(frame, canvas)
+                draw_palette(frame, draw_color_idx, w)
+
+                if erase_flash > 0:
+                    flash = frame.copy()
+                    cv2.rectangle(flash, (0, 0), (w, h), (255, 255, 255), -1)
+                    alpha = erase_flash / 12 * 0.35
+                    cv2.addWeighted(flash, alpha, frame, 1 - alpha, 0, frame)
+                    cv2.putText(frame, "EFFACE !", (w // 2 - 80, h // 2),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 200), 3)
+                    erase_flash -= 1
+
             # --- Démo C ---
             if show_demo_c and bubble_c is not None:
                 update_bubble_c(bubble_c, w, h)
@@ -462,8 +564,13 @@ def main():
             cv2.putText(frame, phy_label, (10, 88),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, phy_color, 2)
 
-            cv2.putText(frame, "a:filaments  b:bulles  c:physique  q:quitter", (w - 490, 28),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.52, (180, 180, 180), 1)
+            des_label = "Dessin : ON" if show_demo_d else "Dessin : OFF"
+            des_color = (180, 255, 180) if show_demo_d else (120, 120, 120)
+            cv2.putText(frame, des_label, (10, 118),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, des_color, 2)
+
+            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin q:quitter",
+                        (w - 560, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.50, (180, 180, 180), 1)
 
             cv2.imshow("Detection de mouvement de la main", frame)
 
@@ -493,6 +600,15 @@ def main():
                 else:
                     bubble_c = None
                     prev_index_c.clear()
+            elif key == ord("d"):
+                show_demo_d = not show_demo_d
+                if show_demo_d:
+                    canvas = np.zeros((h, w, 3), dtype=np.uint8)
+                    prev_draw_pos.clear()
+                    erase_flash = 0
+                else:
+                    canvas = None
+                    prev_draw_pos.clear()
 
     cap.release()
     cv2.destroyAllWindows()

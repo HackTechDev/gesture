@@ -14,7 +14,7 @@
 
 ## Nouvelles démos
 
-- [ ] Démo D — Dessin dans l'air : tracer avec l'index, effacer en ouvrant la main
+- [x] Démo D — Dessin dans l'air : tracer avec l'index, effacer en ouvrant la main
 - [ ] Démo E — Contrôle de volume : écarter/rapprocher pouce et index pour simuler un curseur
 - [ ] Démo F — Reconnaissance de gestes : détecter des formes précises (pouce levé, poing, victoire) et afficher leur nom
 
