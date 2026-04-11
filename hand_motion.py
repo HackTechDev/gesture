@@ -2,6 +2,7 @@ import urllib.request
 import os
 import random
 import time
+from collections import deque, Counter
 import cv2
 import numpy as np
 import mediapipe as mp
@@ -326,6 +327,71 @@ def draw_bubble_c(frame, bubble):
 
 
 # ---------------------------------------------------------------------------
+# Reconnaissance de gestes (démo F)
+# ---------------------------------------------------------------------------
+
+GESTURE_SMOOTH = 10   # frames pour confirmer un geste (anti-scintillement)
+
+
+def _bent(lm, tip, pip):
+    return lm[tip].y > lm[pip].y
+
+def _extended(lm, tip, pip):
+    return lm[tip].y < lm[pip].y
+
+
+def detect_gesture(lm):
+    """Retourne (nom, couleur_BGR) du geste détecté, ou (None, None)."""
+    index_ext  = _extended(lm,  8,  6)
+    middle_ext = _extended(lm, 12, 10)
+    ring_ext   = _extended(lm, 16, 14)
+    pinky_ext  = _extended(lm, 20, 18)
+    thumb_up   = lm[4].y < lm[3].y and lm[4].y < lm[2].y
+
+    # Pouce levé : pouce vers le haut, 4 doigts repliés
+    if thumb_up and not index_ext and not middle_ext and not ring_ext and not pinky_ext:
+        return "Pouce leve !", (0, 200, 255)
+
+    # Victoire : index + majeur étendus, annulaire + auriculaire repliés
+    if index_ext and middle_ext and not ring_ext and not pinky_ext:
+        return "Victoire !", (100, 255, 100)
+
+    # Poing : tous les doigts repliés (pouce non étendu vers le haut)
+    if not index_ext and not middle_ext and not ring_ext and not pinky_ext and not thumb_up:
+        return "Poing !", (80, 80, 255)
+
+    # Main ouverte : tous les doigts étendus
+    if index_ext and middle_ext and ring_ext and pinky_ext:
+        return "Main ouverte", (255, 200, 50)
+
+    # Index pointé : index étendu seul
+    if index_ext and not middle_ext and not ring_ext and not pinky_ext:
+        return "Index pointe", (200, 100, 255)
+
+    return None, None
+
+
+def draw_gesture_label(frame, name, color, cx, cy, w, h):
+    """Affiche le nom du geste dans un bandeau centré sous la main."""
+    font       = cv2.FONT_HERSHEY_SIMPLEX
+    scale      = 1.1
+    thickness  = 3
+    (tw, th), _ = cv2.getTextSize(name, font, scale, thickness)
+    pad        = 14
+    bx         = max(pad, min(cx - tw // 2, w - tw - pad))
+    by         = min(cy + 60, h - 60)
+
+    # Fond arrondi (rectangle + cercles aux coins)
+    rx1, ry1 = bx - pad, by - th - pad
+    rx2, ry2 = bx + tw + pad, by + pad
+    overlay   = frame.copy()
+    cv2.rectangle(overlay, (rx1, ry1), (rx2, ry2), (20, 20, 20), -1)
+    cv2.addWeighted(overlay, 0.65, frame, 0.35, 0, frame)
+    cv2.rectangle(frame, (rx1, ry1), (rx2, ry2), color, 2)
+    cv2.putText(frame, name, (bx, by), font, scale, color, thickness)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -369,6 +435,8 @@ def main():
     prev_draw_pos   = {}      # idx -> (x, y) frame précédente
     draw_color_idx  = 0       # index dans DRAW_COLORS
     erase_flash     = 0       # nb de frames du flash d'effacement
+    show_demo_f     = False
+    gesture_history = {}      # idx -> deque des N dernières détections
 
     with HandLandmarker.create_from_options(options) as landmarker:
         while True:
@@ -451,6 +519,13 @@ def main():
                             cv2.circle(frame, (ix, iy), 8, (255, 255, 255), 1)
                         else:
                             prev_draw_pos.pop(idx, None)
+
+                # --- Démo F : reconnaissance de gestes ---
+                if show_demo_f:
+                    name, color = detect_gesture(hand_landmarks)
+                    if idx not in gesture_history:
+                        gesture_history[idx] = deque(maxlen=GESTURE_SMOOTH)
+                    gesture_history[idx].append(name)
 
                 # --- Démo C : poussée de la bulle par l'index ---
                 if show_demo_c and bubble_c is not None:
@@ -544,6 +619,22 @@ def main():
                 update_bubble_c(bubble_c, w, h)
                 draw_bubble_c(frame, bubble_c)
 
+            # --- Démo F : affichage des gestes lissés ---
+            if show_demo_f:
+                for idx, history in gesture_history.items():
+                    counts      = Counter(g for g in history if g is not None)
+                    best, freq  = counts.most_common(1)[0] if counts else (None, 0)
+                    if best and freq >= GESTURE_SMOOTH // 2:
+                        _, gcolor = detect_gesture(
+                            (results.hand_landmarks or [])[idx]
+                            if idx < len(results.hand_landmarks or []) else []
+                        )
+                        pcx, pcy = current_positions.get(idx, (w // 2, h // 2))
+                        draw_gesture_label(frame, best, gcolor or (200, 200, 200),
+                                           pcx, pcy, w, h)
+                if not (results.hand_landmarks):
+                    gesture_history.clear()
+
             # --- UI ---
             cv2.rectangle(frame, (0, h - 42), (w, h), (30, 30, 30), -1)
             cv2.putText(frame, status_text, (10, h - 12),
@@ -569,8 +660,13 @@ def main():
             cv2.putText(frame, des_label, (10, 118),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, des_color, 2)
 
-            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin q:quitter",
-                        (w - 560, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.50, (180, 180, 180), 1)
+            ges_label = "Gestes : ON" if show_demo_f else "Gestes : OFF"
+            ges_color = (80, 180, 255) if show_demo_f else (120, 120, 120)
+            cv2.putText(frame, ges_label, (10, 148),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, ges_color, 2)
+
+            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes q:quitter",
+                        (w - 640, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.47, (180, 180, 180), 1)
 
             cv2.imshow("Detection de mouvement de la main", frame)
 
@@ -609,6 +705,10 @@ def main():
                 else:
                     canvas = None
                     prev_draw_pos.clear()
+            elif key == ord("f"):
+                show_demo_f = not show_demo_f
+                if not show_demo_f:
+                    gesture_history.clear()
 
     cap.release()
     cv2.destroyAllWindows()

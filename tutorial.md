@@ -45,6 +45,7 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 | `b` | Activer / désactiver la démo bulles à éclater |
 | `c` | Activer / désactiver la démo bulle physique |
 | `d` | Activer / désactiver le dessin dans l'air |
+| `f` | Activer / désactiver la reconnaissance de gestes |
 | `q` | Quitter l'application |
 
 ---
@@ -60,6 +61,7 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 | `new_bubble()` / `draw_bubble()` / `draw_pop()` | Démo B — bulle brillante à éclater par pincement |
 | `new_bubble_c()` / `push_bubble_c()` / `update_bubble_c()` / `draw_bubble_c()` | Démo C — bulle avec physique poussée par l'index |
 | `is_index_only()` / `is_open_hand()` / `draw_palette()` | Démo D — détection des gestes de dessin et effacement |
+| `detect_gesture()` / `draw_gesture_label()` | Démo F — classification de gestes et affichage |
 | `main()` | Boucle principale : capture webcam, détection MediaPipe, rendu, touches |
 
 ---
@@ -96,3 +98,9 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 - Une **palette de 6 couleurs** est affichée en haut à droite ; pointer l'index dessus change la couleur active (encadrée en blanc).
 - Le dessin persiste sur un calque fusionné additivement sur la frame (zones noires = transparentes).
 - Paramètres : `DRAW_COLORS` (liste de couleurs BGR), `DRAW_THICKNESS` (épaisseur du trait).
+
+**Démo F — Reconnaissance de gestes (touche `f`)**
+- 5 gestes reconnus : **Pouce levé**, **Victoire**, **Poing**, **Main ouverte**, **Index pointé**.
+- Détection basée sur la position Y des tips vs PIP joints (tip au-dessus du PIP = doigt étendu).
+- Lissage sur `GESTURE_SMOOTH` frames (défaut : 10) pour éviter le scintillement — un geste est affiché dès qu'il est majoritaire sur la fenêtre.
+- Le nom s'affiche dans un bandeau semi-transparent sous la paume de chaque main détectée.
