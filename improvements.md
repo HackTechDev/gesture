@@ -21,7 +21,7 @@
 ## Qualité visuelle
 
 - [ ] Fond noir ou flou cinématique derrière les landmarks pour mieux les isoler
-- [ ] Traînées de mouvement (motion trail) sur les doigts
+- [x] Traînées de mouvement (motion trail) sur les doigts — Démo G (touche `g`)
 - [ ] Particules qui suivent les extrémités des doigts en permanence
 
 ## Architecture

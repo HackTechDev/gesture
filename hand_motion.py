@@ -12,6 +12,7 @@ import demo_b
 import demo_c
 import demo_d
 import demo_f
+import demo_g
 
 BaseOptions = mp_python.BaseOptions
 HandLandmarker = vision.HandLandmarker
@@ -127,6 +128,10 @@ def main():
     show_f          = False
     gesture_history = {}
 
+    # --- Démo G ---
+    show_g        = False
+    trail_history = {}
+
     with HandLandmarker.create_from_options(options) as landmarker:
         while True:
             ret, frame = cap.read()
@@ -184,6 +189,9 @@ def main():
                 if show_f:
                     demo_f.update_history(gesture_history, idx, hand_landmarks)
 
+                if show_g:
+                    demo_g.update_trails(trail_history, idx, hand_landmarks, w, h)
+
                 if show_c and bubble_c is not None:
                     ix = int(hand_landmarks[8].x * w)
                     iy = int(hand_landmarks[8].y * h)
@@ -213,9 +221,13 @@ def main():
                 demo_c.update_bubble_c(bubble_c, w, h)
                 demo_c.draw_bubble_c(frame, bubble_c)
 
+            active_ids = set(range(len(results.hand_landmarks or [])))
+
             if show_f:
-                active_ids = set(range(len(results.hand_landmarks or [])))
                 demo_f.render(frame, gesture_history, active_ids, current_positions, w, h)
+
+            if show_g:
+                demo_g.render(frame, trail_history, active_ids, w, h)
 
             # --- UI ---
             cv2.rectangle(frame, (0, h - 42), (w, h), (30, 30, 30), -1)
@@ -228,14 +240,15 @@ def main():
                 ("Physique",   show_c),
                 ("Dessin",     show_d),
                 ("Gestes",     show_f),
+                ("Trainées",   show_g),
             ]):
                 color = (0, 220, 255) if active else (120, 120, 120)
                 state = "ON" if active else "OFF"
                 cv2.putText(frame, f"{label} : {state}", (10, 28 + row * 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes q:quitter",
-                        (w - 640, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.47, (180, 180, 180), 1)
+            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes g:trainées q:quitter",
+                        (w - 720, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.44, (180, 180, 180), 1)
 
             cv2.imshow("Detection de mouvement de la main", frame)
 
@@ -273,6 +286,10 @@ def main():
                 show_f = not show_f
                 if not show_f:
                     gesture_history.clear()
+            elif key == ord("g"):
+                show_g = not show_g
+                if not show_g:
+                    trail_history.clear()
 
     cap.release()
     cv2.destroyAllWindows()

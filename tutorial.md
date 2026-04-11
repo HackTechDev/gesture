@@ -46,6 +46,7 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 | `c` | Activer / désactiver la démo bulle physique |
 | `d` | Activer / désactiver le dessin dans l'air |
 | `f` | Activer / désactiver la reconnaissance de gestes |
+| `g` | Activer / désactiver les traînées de mouvement sur les doigts |
 | `q` | Quitter l'application |
 
 ---
@@ -62,6 +63,7 @@ Le projet est découpé en plusieurs fichiers, un par démo :
 | `demo_c.py` | Démo C — bulle physique poussée par l'index, avec rebonds |
 | `demo_d.py` | Démo D — dessin dans l'air avec l'index, effacement main ouverte, palette de couleurs |
 | `demo_f.py` | Démo F — reconnaissance de gestes (Pouce levé, Victoire, Poing, Main ouverte, Index pointé, Metal) |
+| `demo_g.py` | Démo G — traînées de mouvement lumineuses sur les 5 bouts de doigts |
 
 Fonctions utilitaires dans `hand_motion.py` :
 
@@ -107,6 +109,12 @@ Fonctions utilitaires dans `hand_motion.py` :
 - Une **palette de 6 couleurs** est affichée en haut à droite ; pointer l'**auriculaire** (landmark 20) dessus change la couleur active (encadrée en blanc).
 - Le dessin persiste sur un calque fusionné additivement sur la frame (zones noires = transparentes).
 - Paramètres : `DRAW_COLORS` (liste de couleurs BGR), `DRAW_THICKNESS` (épaisseur du trait).
+
+**Démo G — Traînées de mouvement (touche `g`)**
+- Chaque bout de doigt (pouce, index, majeur, annulaire, auriculaire) laisse une traînée lumineuse sur les `TRAIL_LENGTH` dernières positions (défaut : 22 frames).
+- La traînée s'épaissit et s'illumine vers l'extrémité la plus récente ; un halo néon est ajouté par fusion additive d'un calque flou.
+- Une couleur distincte est attribuée à chaque doigt ; fonctionne simultanément sur les deux mains.
+- Compatible avec toutes les autres démos.
 
 **Démo F — Reconnaissance de gestes (touche `f`)**
 - 6 gestes reconnus : **Pouce levé**, **Victoire**, **Poing**, **Main ouverte**, **Index pointé**, **Metal** (index + auriculaire étendus).
