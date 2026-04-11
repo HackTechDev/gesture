@@ -17,6 +17,8 @@
 - [x] Démo D — Dessin dans l'air : tracer avec l'index, effacer en ouvrant la main
 - [ ] Démo E — Contrôle de volume : écarter/rapprocher pouce et index pour simuler un curseur
 - [x] Démo F — Reconnaissance de gestes : détecter des formes précises (pouce levé, poing, victoire) et afficher leur nom
+- [x] Démo F — Geste Dr Strange : cercle magique animé (pentagramme + runes + étincelles) adapté à la taille de la main
+- [x] Démo G — Traînées de mouvement (motion trail) sur les 5 bouts de doigts avec halo néon
 
 ## Qualité visuelle
 

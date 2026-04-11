@@ -117,7 +117,16 @@ Fonctions utilitaires dans `hand_motion.py` :
 - Compatible avec toutes les autres démos.
 
 **Démo F — Reconnaissance de gestes (touche `f`)**
-- 6 gestes reconnus : **Pouce levé**, **Victoire**, **Poing**, **Main ouverte**, **Index pointé**, **Metal** (index + auriculaire étendus).
-- Détection basée sur la position Y des tips vs PIP joints (tip au-dessus du PIP = doigt étendu).
+- 7 gestes reconnus : **Pouce levé**, **Dr Strange**, **Victoire**, **Poing**, **Main ouverte**, **Index pointé**, **Metal**.
+- Détection basée sur la position Y des tips vs PIP joints (tip au-dessus du PIP = doigt étendu) et sur des distances normalisées entre landmarks.
 - Lissage sur `GESTURE_SMOOTH` frames (défaut : 10) pour éviter le scintillement — un geste est affiché dès qu'il est majoritaire sur la fenêtre.
-- Le nom s'affiche dans un bandeau semi-transparent sous la paume de chaque main détectée.
+- Le nom s'affiche dans un bandeau semi-transparent sous la paume, sauf pour **Dr Strange** qui affiche à la place un cercle magique animé.
+
+  *Détails des gestes :*
+  - **Pouce levé** : pouce étendu vers le haut, 4 autres doigts repliés.
+  - **Dr Strange** : index + majeur collés et étendus, pouce écarté latéralement, annulaire + auriculaire repliés — affiche un cercle orange/rouge avec pentagramme tournant, 16 marques runiques et 8 étincelles orbitales ; la taille du cercle s'adapte à celle de la main.
+  - **Victoire** : index + majeur étendus et écartés, pouce replié, annulaire + auriculaire repliés.
+  - **Poing** : tous les doigts et le pouce repliés.
+  - **Main ouverte** : les 4 doigts étendus.
+  - **Metal** : index + auriculaire étendus, autres repliés.
+  - **Index pointé** : index seul étendu.
