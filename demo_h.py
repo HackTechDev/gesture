@@ -1,171 +1,214 @@
-"""Démo H — Bulle d'eau en apesanteur, modelable avec les deux mains."""
+"""Démo H — Bulle d'eau 3D en apesanteur, modelable avec les deux mains.
+
+Maillage déformable : N points de contrôle avec physique ressort-masse
+et propagation d'onde. Chaque doigt (5 tips + paume) déforme la surface
+indépendamment dans n'importe quelle direction.
+"""
 import math
 import time
 import cv2
 import numpy as np
-from config import BUBBLE_H_MIN_R, BUBBLE_H_MAX_R
+from config import BUBBLE_H_MIN_R, BUBBLE_H_MAX_R, FINGERTIPS
 
-_SPRING_K  = 0.12   # raideur du ressort (position et rayon)
-_SPRING_D  = 0.78   # amortissement
-_FADE_STEP = 0.07   # vitesse de fondu (apparition / disparition)
-_TOUCH_MARGIN = 38  # pixels — zone de contact autour de la surface
+# ── Maillage ───────────────────────────────────────────────────────────────
+N_SEG   = 48
+_ANGLES = np.linspace(0, 2 * math.pi, N_SEG, endpoint=False, dtype=np.float32)
+_COS_A  = np.cos(_ANGLES)
+_SIN_A  = np.sin(_ANGLES)
 
-# Couleurs eau (BGR)
-_C_DEEP  = ( 90,  50,  15)   # bleu profond
-_C_MID   = (175, 110,  45)   # bleu moyen
-_C_LIGHT = (220, 175, 100)   # bleu clair
-_C_RIM   = (255, 230, 160)   # reflet de bord (rim Fresnel)
-_C_WHITE = (255, 255, 245)   # surbrillance spéculaire
+# ── Physique des points de surface ────────────────────────────────────────
+_SPRING_K   = 0.038   # rappel vers la sphère de repos
+_COUPLING   = 0.22    # couplage voisins → propagation d'onde
+_DAMPING    = 0.90    # amortissement par frame
+_PUSH       = 0.32    # intensité de la poussée des doigts
+_SIGMA      = 0.65    # largeur angulaire de l'influence (radians)
+_TOUCH_ZONE = 48      # pixels au-delà de la surface pour déclencher le contact
 
+# ── Physique du centre ─────────────────────────────────────────────────────
+_CK   = 0.12
+_CD   = 0.78
+_FADE = 0.07
+
+# Landmarks d'interaction : 5 bouts de doigts + paume
+_INTERACT_LM = FINGERTIPS + [9]
+
+# ── Couleurs eau (BGR) ────────────────────────────────────────────────────
+_C_DEEP  = ( 80,  45,  10)
+_C_MID   = (160, 105,  40)
+_C_LIGHT = (210, 168,  90)
+_C_RIM   = (250, 225, 155)
+_C_WHITE = (255, 255, 248)
+
+
+# ── API publique ───────────────────────────────────────────────────────────
 
 def new_bubble_h():
     return {
         "cx": 0.0, "cy": 0.0, "r": float(BUBBLE_H_MIN_R),
         "vx": 0.0, "vy": 0.0, "vr": 0.0,
+        "disp": np.zeros(N_SEG, dtype=np.float32),
+        "vel":  np.zeros(N_SEG, dtype=np.float32),
         "alpha": 0.0,
     }
 
 
-def _palm(lm, w, h):
-    """Coordonnées pixel du centre de la paume (landmark 9)."""
-    return int(lm[9].x * w), int(lm[9].y * h)
-
-
 def update(bubble, hands_by_side, w, h):
-    """Met à jour position, rayon et opacité de la bulle (ressort + fondu)."""
+    """Met à jour centre, rayon et déformations de la bulle."""
     left  = hands_by_side.get("Left")
     right = hands_by_side.get("Right")
 
+    # ── Centre et rayon ──────────────────────────────────────────────────
     if left is not None and right is not None:
         lx, ly = _palm(left,  w, h)
         rx, ry = _palm(right, w, h)
+        tcx  = (lx + rx) * 0.5
+        tcy  = (ly + ry) * 0.5
+        dist = math.hypot(lx - rx, ly - ry)
+        tr   = max(BUBBLE_H_MIN_R, min(BUBBLE_H_MAX_R, dist / 2.2))
 
-        target_cx = (lx + rx) / 2
-        target_cy = (ly + ry) / 2
-        dist      = ((lx - rx) ** 2 + (ly - ry) ** 2) ** 0.5
-        target_r  = max(BUBBLE_H_MIN_R, min(BUBBLE_H_MAX_R, dist / 2.2))
-
-        # Téléporte au centre si première apparition
         if bubble["alpha"] == 0.0:
-            bubble["cx"], bubble["cy"], bubble["r"] = target_cx, target_cy, target_r
+            bubble["cx"], bubble["cy"], bubble["r"] = tcx, tcy, tr
 
-        bubble["vx"] = bubble["vx"] * _SPRING_D + (target_cx - bubble["cx"]) * _SPRING_K
-        bubble["vy"] = bubble["vy"] * _SPRING_D + (target_cy - bubble["cy"]) * _SPRING_K
-        bubble["vr"] = bubble["vr"] * _SPRING_D + (target_r  - bubble["r"])  * _SPRING_K
-        bubble["alpha"] = min(1.0, bubble["alpha"] + _FADE_STEP)
+        bubble["vx"] = bubble["vx"] * _CD + (tcx - bubble["cx"]) * _CK
+        bubble["vy"] = bubble["vy"] * _CD + (tcy - bubble["cy"]) * _CK
+        bubble["vr"] = bubble["vr"] * _CD + (tr   - bubble["r"])  * _CK
+        bubble["alpha"] = min(1.0, bubble["alpha"] + _FADE)
     else:
-        # Fondu sortant
-        bubble["vx"] *= _SPRING_D
-        bubble["vy"] *= _SPRING_D
-        bubble["vr"] *= _SPRING_D
-        bubble["alpha"] = max(0.0, bubble["alpha"] - _FADE_STEP)
+        bubble["vx"] *= _CD
+        bubble["vy"] *= _CD
+        bubble["vr"] *= _CD
+        bubble["alpha"] = max(0.0, bubble["alpha"] - _FADE)
 
     bubble["cx"] += bubble["vx"]
     bubble["cy"] += bubble["vy"]
     bubble["r"]   = max(BUBBLE_H_MIN_R, bubble["r"] + bubble["vr"])
 
+    # ── Forces des doigts sur la surface ─────────────────────────────────
+    cx, cy, r    = bubble["cx"], bubble["cy"], bubble["r"]
+    disp         = bubble["disp"]
+    vel          = bubble["vel"]
+    hand_force   = np.zeros(N_SEG, dtype=np.float32)
+    n_interact   = float(len(_INTERACT_LM))
 
-def _contacts(bubble, hands_by_side, w, h):
-    """Retourne [(contact_px, contact_py, depth, nx, ny), ...] pour chaque main proche."""
-    result = []
-    cx, cy, r = bubble["cx"], bubble["cy"], bubble["r"]
     for side in ("Left", "Right"):
         lm = hands_by_side.get(side)
         if lm is None:
             continue
-        hx, hy = _palm(lm, w, h)
-        dx, dy = hx - cx, hy - cy
-        dist   = (dx * dx + dy * dy) ** 0.5
-        if dist < r + _TOUCH_MARGIN:
-            depth = max(0.0, r + _TOUCH_MARGIN - dist)
-            nx, ny = (dx / dist, dy / dist) if dist > 1 else (0.0, -1.0)
-            # Point de contact : sur la surface dans la direction de la main
-            contact_d = min(dist, r)
-            cpx = int(cx + nx * contact_d)
-            cpy = int(cy + ny * contact_d)
-            result.append((cpx, cpy, depth, nx, ny))
-    return result
+        for lm_idx in _INTERACT_LM:
+            px = lm[lm_idx].x * w
+            py = lm[lm_idx].y * h
+            dx   = px - cx
+            dy   = py - cy
+            dist_p = math.hypot(dx, dy)
+            pen    = (r + _TOUCH_ZONE) - dist_p
+            if pen <= 0:
+                continue
+            ang_diff = _ANGLES - math.atan2(dy, dx)
+            ang_diff = (ang_diff + math.pi) % (2 * math.pi) - math.pi
+            weight   = np.exp(-ang_diff * ang_diff / (2 * _SIGMA * _SIGMA))
+            # Négatif = enfonce depuis l'extérieur ; positif = pousse de l'intérieur
+            sign = -1.0 if dist_p >= r else 1.0
+            hand_force += sign * weight * (pen * _PUSH / n_interact)
+
+    # ── Intégration ressort-masse + couplage voisins ──────────────────────
+    acc   = -_SPRING_K * disp
+    acc  += _COUPLING * (np.roll(disp, 1) + np.roll(disp, -1) - 2.0 * disp)
+    acc  += hand_force
+    vel  += acc
+    vel  *= _DAMPING
+    disp += vel
+    np.clip(disp, -r * 0.55, r * 0.70, out=disp)
 
 
-def render(frame, bubble, hands_by_side, w, h):
-    """Dessine la bulle d'eau avec ses effets visuels."""
+def render(frame, bubble, w, h):
+    """Dessine la bulle d'eau 3D déformée en 9 couches."""
     alpha = bubble["alpha"]
     if alpha <= 0.01:
         return
 
-    cx = int(bubble["cx"])
-    cy = int(bubble["cy"])
-    r  = int(bubble["r"])
-    t  = time.time()
+    pts = _pts(bubble)
+    cx  = int(bubble["cx"])
+    cy  = int(bubble["cy"])
+    r   = int(bubble["r"])
+    t   = time.time()
 
-    contacts = _contacts(bubble, hands_by_side, w, h)
-
-    # ── 1. Halo extérieur (glow additif) ─────────────────────────────────
+    # ── 1. Halo gaussien additif ─────────────────────────────────────────
     glow = np.zeros_like(frame, dtype=np.uint8)
-    cv2.circle(glow, (cx, cy), r + 28, _C_MID, 12)
-    glow_b = cv2.GaussianBlur(glow, (39, 39), 0)
-    frame[:] = cv2.addWeighted(frame, 1.0, glow_b, alpha * 0.55, 0)
+    cv2.polylines(glow, [pts], True, _C_MID, 18)
+    frame[:] = cv2.addWeighted(frame, 1.0,
+                                cv2.GaussianBlur(glow, (45, 45), 0),
+                                alpha * 0.55, 0)
 
-    # ── 2. Corps translucide ──────────────────────────────────────────────
+    # ── 2. Corps translucide (profondeur de l'eau) ───────────────────────
     ov = frame.copy()
-    cv2.circle(ov, (cx, cy), r, _C_DEEP, -1)
-    cv2.addWeighted(ov, alpha * 0.30, frame, 1 - alpha * 0.30, 0, frame)
+    cv2.fillPoly(ov, [pts], _C_DEEP)
+    cv2.addWeighted(ov, alpha * 0.30, frame, 1.0 - alpha * 0.30, 0, frame)
 
-    # ── 3. Volume intérieur (dégradé simulé) ─────────────────────────────
+    # ── 3. Volume 3D : face illuminée (80 % de la taille, décalée) ───────
+    inner80 = _scaled_pts(pts, cx, cy, 0.80, -r // 10, -r // 12)
     ov2 = frame.copy()
-    cv2.circle(ov2, (cx - r // 7, cy - r // 8), int(r * 0.68), _C_MID, -1)
-    cv2.addWeighted(ov2, alpha * 0.14, frame, 1 - alpha * 0.14, 0, frame)
+    cv2.fillPoly(ov2, [inner80], _C_MID)
+    cv2.addWeighted(ov2, alpha * 0.16, frame, 1.0 - alpha * 0.16, 0, frame)
 
-    # ── 4. Caustiques animées (reflets internes mobiles) ─────────────────
+    # ── 4. Volume 3D : cœur lumineux (50 %, décalé haut-gauche) ─────────
+    inner50 = _scaled_pts(pts, cx, cy, 0.52, -r // 8, -r // 10)
+    ov3 = frame.copy()
+    cv2.fillPoly(ov3, [inner50], _C_LIGHT)
+    cv2.addWeighted(ov3, alpha * 0.10, frame, 1.0 - alpha * 0.10, 0, frame)
+
+    # ── 5. Limb darkening : assombrissement des bords ────────────────────
+    ov4 = frame.copy()
+    cv2.polylines(ov4, [pts], True, (12, 8, 2), 16)
+    cv2.addWeighted(ov4, alpha * 0.40, frame, 1.0 - alpha * 0.40, 0, frame)
+
+    # ── 6. Caustiques internes animées ───────────────────────────────────
     for i in range(5):
-        a   = t * 0.38 + i * math.pi * 2 / 5
-        ex  = cx + int(r * 0.30 * math.cos(a))
-        ey  = cy + int(r * 0.25 * math.sin(a * 1.45))
-        erx = max(3, int(r * (0.11 + 0.04 * math.sin(t * 1.1 + i))))
+        a   = t * 0.38 + i * math.pi * 0.4
+        ex  = cx + int(r * 0.28 * math.cos(a))
+        ey  = cy + int(r * 0.22 * math.sin(a * 1.45))
+        erx = max(3, int(r * (0.10 + 0.04 * math.sin(t * 1.1 + i))))
         ery = max(2, int(r * (0.055 + 0.03 * math.cos(t * 0.85 + i))))
-        ang = int((t * 18 + i * 36) % 180)
-        ov3 = frame.copy()
-        cv2.ellipse(ov3, (ex, ey), (erx, ery), ang, 0, 360, _C_LIGHT, -1)
-        cv2.addWeighted(ov3, alpha * 0.09, frame, 1 - alpha * 0.09, 0, frame)
+        ov5 = frame.copy()
+        cv2.ellipse(ov5, (ex, ey), (erx, ery),
+                    int((t * 18 + i * 36) % 180), 0, 360, _C_LIGHT, -1)
+        cv2.addWeighted(ov5, alpha * 0.09, frame, 1.0 - alpha * 0.09, 0, frame)
 
-    # ── 5. Indentations des mains ─────────────────────────────────────────
-    for cpx, cpy, depth, nx, ny in contacts:
-        indent_r = max(10, int(depth * 0.75))
+    # ── 7. Rim Fresnel ────────────────────────────────────────────────────
+    ov6 = frame.copy()
+    cv2.polylines(ov6, [pts], True, _C_RIM, 4)
+    cv2.addWeighted(ov6, alpha * 0.65, frame, 1.0 - alpha * 0.65, 0, frame)
 
-        # Cuvette sombre
-        ind = frame.copy()
-        cv2.circle(ind, (cpx, cpy), indent_r, _C_DEEP, -1)
-        blend = min(0.60, depth / (r + 1))
-        cv2.addWeighted(ind, blend * alpha, frame, 1 - blend * alpha, 0, frame)
+    # ── 8. Surbrillance spéculaire principale ─────────────────────────────
+    hl_x, hl_y = cx - r // 3, cy - r // 3
+    ov7 = frame.copy()
+    cv2.ellipse(ov7, (hl_x, hl_y),
+                (max(5, r // 4), max(3, r // 7)), -30, 0, 360, _C_WHITE, -1)
+    cv2.addWeighted(ov7, alpha * 0.85, frame, 1.0 - alpha * 0.85, 0, frame)
 
-        # Bord lumineux de l'indent (tension de surface)
-        cv2.circle(frame, (cpx, cpy), indent_r, _C_RIM, 2)
-
-        # Mini-bulle d'air au fond si indent profond
-        if indent_r > 16:
-            air_r = max(3, indent_r // 4)
-            air_x = cpx - int(nx * air_r)
-            air_y = cpy - int(ny * air_r)
-            ov4 = frame.copy()
-            cv2.circle(ov4, (air_x, air_y), air_r, _C_LIGHT, -1)
-            cv2.addWeighted(ov4, alpha * 0.65, frame, 1 - alpha * 0.65, 0, frame)
-
-    # ── 6. Rim Fresnel (bord lumineux) ───────────────────────────────────
-    rim = frame.copy()
-    cv2.circle(rim, (cx, cy), r, _C_RIM, 6)
-    cv2.addWeighted(rim, alpha * 0.60, frame, 1 - alpha * 0.60, 0, frame)
-
-    # ── 7. Surbrillance spéculaire principale ─────────────────────────────
-    hl_x = cx - r // 3
-    hl_y = cy - r // 3
-    hl_a = max(5, r // 4)
-    hl_b = max(3, r // 7)
-    hl = frame.copy()
-    cv2.ellipse(hl, (hl_x, hl_y), (hl_a, hl_b), -30, 0, 360, _C_WHITE, -1)
-    cv2.addWeighted(hl, alpha * 0.82, frame, 1 - alpha * 0.82, 0, frame)
-
-    # ── 8. Surbrillance secondaire ────────────────────────────────────────
+    # ── 9. Surbrillance secondaire + contour final ────────────────────────
     cv2.circle(frame, (cx + r // 3, cy + r // 4), max(2, r // 11), _C_WHITE, -1)
+    cv2.polylines(frame, [pts], True, _C_RIM, 1)
 
-    # ── 9. Contour final ──────────────────────────────────────────────────
-    cv2.circle(frame, (cx, cy), r, _C_RIM, 1)
+
+# ── Utilitaires internes ───────────────────────────────────────────────────
+
+def _palm(lm, w, h):
+    return int(lm[9].x * w), int(lm[9].y * h)
+
+
+def _pts(bubble):
+    """N points de la surface déformée en int32."""
+    radii = bubble["r"] + bubble["disp"]
+    return np.column_stack([
+        bubble["cx"] + radii * _COS_A,
+        bubble["cy"] + radii * _SIN_A,
+    ]).astype(np.int32)
+
+
+def _scaled_pts(pts, cx, cy, scale, off_x=0, off_y=0):
+    """Homothétie du polygone autour d'un centre décalé."""
+    p = pts.astype(np.float32)
+    ox, oy = cx + off_x, cy + off_y
+    p[:, 0] = ox + (p[:, 0] - cx) * scale
+    p[:, 1] = oy + (p[:, 1] - cy) * scale
+    return p.astype(np.int32)

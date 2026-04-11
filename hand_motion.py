@@ -250,7 +250,7 @@ def main():
 
             if show_h and bubble_h is not None:
                 demo_h.update(bubble_h, hands_by_side, w, h)
-                demo_h.render(frame, bubble_h, hands_by_side, w, h)
+                demo_h.render(frame, bubble_h, w, h)
 
             # --- UI ---
             cv2.rectangle(frame, (0, h - 42), (w, h), (30, 30, 30), -1)
