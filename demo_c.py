@@ -1,13 +1,7 @@
 """Démo C — Bulle physique poussée par l'index, avec rebonds sur les bords."""
 import random
 import cv2
-from demo_b import BUBBLE_PALETTE
-
-BUBBLE_RADIUS_C = 50
-PUSH_RADIUS     = BUBBLE_RADIUS_C + 50  # zone de contact
-PUSH_FACTOR     = 0.45                  # intensité de la poussée
-DAMPING         = 0.97                  # friction par frame
-MAX_VEL         = 28                    # vitesse maximale en px/frame
+from config import BUBBLE_PALETTE, BUBBLE_RADIUS_C, PUSH_RADIUS, PUSH_FACTOR, DAMPING, MAX_VEL
 
 
 def new_bubble_c(w, h):

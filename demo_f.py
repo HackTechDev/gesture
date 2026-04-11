@@ -4,13 +4,14 @@ import math
 import time
 import cv2
 import numpy as np
-
-GESTURE_SMOOTH = 10  # frames pour confirmer un geste (anti-scintillement)
-
-# Cercle magique Dr Strange
-_CIRCLE_R    = 90   # rayon principal en pixels
-_RUNE_COUNT  = 16   # nombre de marques runiques sur le cercle extérieur
-_SPARK_COUNT = 8    # étincelles orbitant autour du cercle
+from config import (
+    GESTURE_SMOOTH,
+    DR_STRANGE_CIRCLE_R  as _CIRCLE_R,
+    DR_STRANGE_RUNES     as _RUNE_COUNT,
+    DR_STRANGE_SPARKS    as _SPARK_COUNT,
+    THUMB_SPREAD_THRESHOLD,
+    FINGERS_TOGETHER_THRESHOLD,
+)
 
 
 def _extended(lm, tip, pip):
@@ -36,8 +37,8 @@ def detect_gesture(lm):
     if thumb_up and not index_ext and not middle_ext and not ring_ext and not pinky_ext:
         return "Pouce leve !", (0, 200, 255)
     # Pouce écarté : tip (4) loin du MCP de l'index (5), quelle que soit l'orientation
-    thumb_spread    = _tips_distance(lm, 4, 5) > 0.13
-    fingers_together = _tips_distance(lm, 8, 12) < 0.07
+    thumb_spread     = _tips_distance(lm, 4, 5) > THUMB_SPREAD_THRESHOLD
+    fingers_together = _tips_distance(lm, 8, 12) < FINGERS_TOGETHER_THRESHOLD
     if thumb_spread and index_ext and middle_ext and not ring_ext and not pinky_ext and fingers_together:
         return "Dr Strange !", (0, 140, 255)
     if index_ext and middle_ext and not ring_ext and not pinky_ext and not thumb_up:

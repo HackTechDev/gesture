@@ -3,21 +3,10 @@ import random
 import time
 import cv2
 import numpy as np
-
-BUBBLE_RADIUS  = 40   # pixels
-POP_DURATION   = 18   # frames d'animation d'éclatement
-BUBBLE_COUNT   = 5    # nombre de bulles simultanées
-GAME_DURATION  = 30   # secondes par partie
-PINCH_THRESHOLD = 50  # distance pouce/index pour pincement
-
-BUBBLE_PALETTE = [
-    (255,  80, 120),  # rose
-    (80,  200, 255),  # jaune
-    (255, 180,  50),  # cyan
-    (120, 255, 100),  # vert
-    (200,  80, 255),  # violet
-    (80,  160, 255),  # orange
-]
+from config import (
+    BUBBLE_RADIUS, POP_DURATION, BUBBLE_COUNT,
+    GAME_DURATION, PINCH_THRESHOLD, BUBBLE_PALETTE,
+)
 
 
 def new_bubble(w, h, existing=None):

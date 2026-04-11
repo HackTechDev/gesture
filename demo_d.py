@@ -1,15 +1,6 @@
 """Démo D — Dessin dans l'air avec l'index, effacement main ouverte."""
 import cv2
-
-DRAW_COLORS = [
-    (255, 255, 255),  # blanc
-    (100, 255, 100),  # vert
-    (100, 100, 255),  # rouge
-    (0,   220, 255),  # jaune
-    (255, 100, 200),  # violet
-    (50,  200, 255),  # orange
-]
-DRAW_THICKNESS = 3
+from config import DRAW_COLORS, DRAW_THICKNESS
 
 
 def is_index_only(lm):

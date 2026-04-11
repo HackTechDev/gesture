@@ -1,16 +1,7 @@
 """Démo A — Filaments lumineux entre les extrémités des deux mains."""
 import cv2
 import numpy as np
-
-FINGERTIPS = [4, 8, 12, 16, 20]
-
-FILAMENT_COLORS = [
-    (255, 180,   0),  # cyan    — pouce
-    (0,   255, 180),  # vert    — index
-    (180,   0, 255),  # violet  — majeur
-    (0,   200, 255),  # jaune   — annulaire
-    (255,  50, 150),  # rose    — auriculaire
-]
+from config import FINGERTIPS, FILAMENT_COLORS
 
 
 def draw_filaments(frame, left_lm, right_lm, w, h):

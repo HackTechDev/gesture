@@ -1,6 +1,7 @@
 import urllib.request
 import os
 import time
+from collections import deque
 import cv2
 import numpy as np
 import mediapipe as mp
@@ -13,6 +14,13 @@ import demo_c
 import demo_d
 import demo_f
 import demo_g
+from config import (
+    CAMERA_INDEX, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS,
+    MOVEMENT_THRESHOLD, FPS_SMOOTHING,
+    NUM_HANDS,
+    MIN_DETECTION_CONFIDENCE, MIN_PRESENCE_CONFIDENCE, MIN_TRACKING_CONFIDENCE,
+    BUBBLE_COUNT,
+)
 
 BaseOptions = mp_python.BaseOptions
 HandLandmarker = vision.HandLandmarker
@@ -25,8 +33,6 @@ MODEL_URL  = (
     "https://storage.googleapis.com/mediapipe-models/"
     "hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task"
 )
-
-MOVEMENT_THRESHOLD = 15  # pixels
 
 HAND_CONNECTIONS = [
     (0, 1), (1, 2), (2, 3), (3, 4),
@@ -81,23 +87,26 @@ def main():
     options = HandLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=MODEL_PATH),
         running_mode=VisionRunningMode.VIDEO,
-        num_hands=2,
-        min_hand_detection_confidence=0.5,
-        min_hand_presence_confidence=0.5,
-        min_tracking_confidence=0.5,
+        num_hands=NUM_HANDS,
+        min_hand_detection_confidence=MIN_DETECTION_CONFIDENCE,
+        min_hand_presence_confidence=MIN_PRESENCE_CONFIDENCE,
+        min_tracking_confidence=MIN_TRACKING_CONFIDENCE,
     )
 
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(CAMERA_INDEX)
     if not cap.isOpened():
         print("Erreur : impossible d'ouvrir la webcam.")
         return
 
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    cap.set(cv2.CAP_PROP_FPS, 30)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH,  CAMERA_WIDTH)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+    cap.set(cv2.CAP_PROP_FPS,          CAMERA_FPS)
 
     w_cam = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h_cam = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    # --- FPS ---
+    fps_times = deque(maxlen=FPS_SMOOTHING)
 
     # --- État général ---
     prev_positions = {}
@@ -140,6 +149,7 @@ def main():
                 break
 
             timestamp_ms = int(cap.get(cv2.CAP_PROP_POS_MSEC))
+            fps_times.append(time.time())
             frame = cv2.flip(frame, 1)
             h, w = frame.shape[:2]
 
@@ -254,6 +264,13 @@ def main():
             cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes g:trainées q:quitter",
                         (w - 720, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.44, (180, 180, 180), 1)
 
+            # --- FPS ---
+            if len(fps_times) >= 2:
+                fps = (len(fps_times) - 1) / (fps_times[-1] - fps_times[0])
+                fps_color = (0, 220, 0) if fps >= 25 else (0, 140, 255) if fps >= 15 else (0, 50, 255)
+                cv2.putText(frame, f"FPS: {fps:.0f}", (w - 100, h - 12),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, fps_color, 2)
+
             cv2.imshow("Detection de mouvement de la main", frame)
 
             key = cv2.waitKey(1) & 0xFF
@@ -265,7 +282,7 @@ def main():
                 show_b = not show_b
                 if show_b:
                     bubbles    = [demo_b.new_bubble(w, h, [])]
-                    for _ in range(demo_b.BUBBLE_COUNT - 1):
+                    for _ in range(BUBBLE_COUNT - 1):
                         bubbles.append(demo_b.new_bubble(w, h, bubbles))
                     pops, score, game_start = [], 0, time.time()
                 else:

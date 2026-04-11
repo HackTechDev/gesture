@@ -2,18 +2,7 @@
 from collections import deque
 import cv2
 import numpy as np
-
-TRAIL_LENGTH = 22   # nombre de positions mémorisées par doigt
-FINGERTIPS   = [4, 8, 12, 16, 20]
-
-# Couleurs BGR par doigt : pouce, index, majeur, annulaire, auriculaire
-TRAIL_COLORS = [
-    (255, 180,   0),   # cyan
-    (  0, 255, 160),   # vert-menthe
-    (180,  60, 255),   # violet
-    (  0, 200, 255),   # jaune
-    (255,  60, 160),   # rose
-]
+from config import TRAIL_LENGTH, TRAIL_COLORS, FINGERTIPS
 
 
 def update_trails(trail_history, idx, hand_landmarks, w, h):
