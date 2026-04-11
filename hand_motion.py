@@ -364,6 +364,10 @@ def detect_gesture(lm):
     if index_ext and middle_ext and ring_ext and pinky_ext:
         return "Main ouverte", (255, 200, 50)
 
+    # Metal : index + auriculaire étendus, majeur + annulaire repliés
+    if index_ext and not middle_ext and not ring_ext and pinky_ext:
+        return "Metal !", (0, 80, 255)
+
     # Index pointé : index étendu seul
     if index_ext and not middle_ext and not ring_ext and not pinky_ext:
         return "Index pointe", (200, 100, 255)
