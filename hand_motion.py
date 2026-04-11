@@ -420,37 +420,37 @@ def main():
                 if show_demo_d and canvas is not None:
                     ix = int(hand_landmarks[8].x * w)
                     iy = int(hand_landmarks[8].y * h)
+                    px_pinky = int(hand_landmarks[20].x * w)
+                    py_pinky = int(hand_landmarks[20].y * h)
                     color = DRAW_COLORS[draw_color_idx]
 
                     if is_open_hand(hand_landmarks):
-                        canvas[:] = 0          # effacement complet
+                        canvas[:] = 0
                         erase_flash = 12
                         prev_draw_pos.pop(idx, None)
 
-                        # Sélection couleur si index pointe sur la palette
-                    elif is_index_only(hand_landmarks):
-                        # Vérifier si l'index pointe sur un carré de couleur
+                    else:
+                        # Sélection couleur : petit doigt (landmark 20) sur la palette
                         x0, y0, sw, gap = draw_palette(frame, draw_color_idx, w)
-                        picked = False
                         for i in range(len(DRAW_COLORS)):
-                            px = x0 + i * (sw + gap)
-                            if px <= ix <= px + sw and y0 <= iy <= y0 + sw:
+                            bx = x0 + i * (sw + gap)
+                            if bx <= px_pinky <= bx + sw and y0 <= py_pinky <= y0 + sw:
                                 draw_color_idx = i
+                                color = DRAW_COLORS[i]
                                 prev_draw_pos.pop(idx, None)
-                                picked = True
                                 break
 
-                        if not picked:
+                        # Dessin : index seul étendu
+                        if is_index_only(hand_landmarks):
                             if idx in prev_draw_pos:
                                 cv2.line(canvas, prev_draw_pos[idx], (ix, iy),
                                          color, DRAW_THICKNESS)
                             prev_draw_pos[idx] = (ix, iy)
-
-                        # Curseur à l'extrémité de l'index
-                        cv2.circle(frame, (ix, iy), 8, color, -1)
-                        cv2.circle(frame, (ix, iy), 8, (255, 255, 255), 1)
-                    else:
-                        prev_draw_pos.pop(idx, None)
+                            # Curseur à l'extrémité de l'index
+                            cv2.circle(frame, (ix, iy), 8, color, -1)
+                            cv2.circle(frame, (ix, iy), 8, (255, 255, 255), 1)
+                        else:
+                            prev_draw_pos.pop(idx, None)
 
                 # --- Démo C : poussée de la bulle par l'index ---
                 if show_demo_c and bubble_c is not None:
