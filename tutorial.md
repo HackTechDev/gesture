@@ -27,33 +27,13 @@ python3 -m venv .venv
 .venv/bin/pip install mediapipe opencv-python numpy
 ```
 
-> `numpy` est utilisé pour les calques de glow (filaments) et les étincelles de la démo bulles.
-
-## 4. Créer le script `hand_motion.py`
-
-Le code source complet se trouve dans `hand_motion.py` à la racine du projet.
-Le modèle MediaPipe (`hand_landmarker_full.task`) est téléchargé automatiquement au premier lancement.
-
-### Architecture du script
-
-| Section | Rôle |
-|---|---|
-| Constantes | Seuils, rayons, physique — tous ajustables en tête de fichier |
-| `download_model()` | Téléchargement automatique du modèle `.task` |
-| `enhance_frame()` | Prétraitement CLAHE (éclairage) |
-| `draw_hand()` | Tracé des landmarks et connexions |
-| `draw_filaments()` | Démo A — filaments néon entre les deux mains |
-| `new_bubble()` / `draw_bubble()` / `draw_pop()` | Démo B — bulle à éclater |
-| `new_bubble_c()` / `push_bubble_c()` / `update_bubble_c()` / `draw_bubble_c()` | Démo C — bulle physique |
-| `main()` | Boucle principale : capture, détection, rendu, gestion des touches |
-
-## 5. Lancer l'application
+## 4. Lancer l'application
 
 ```bash
 .venv/bin/python hand_motion.py
 ```
 
-Au premier lancement, le modèle est téléchargé automatiquement dans `hand_landmarker_full.task`.
+Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé automatiquement.
 
 ---
 
@@ -61,23 +41,47 @@ Au premier lancement, le modèle est téléchargé automatiquement dans `hand_la
 
 | Touche | Action |
 |--------|--------|
-| `a` | Activer / désactiver les filaments lumineux |
-| `b` | Activer / désactiver la démo bulles (pincer avec pouce + index pour éclater) |
-| `c` | Activer / désactiver la démo physique (pousser la bulle avec l'index) |
+| `a` | Activer / désactiver les filaments lumineux entre les deux mains |
+| `b` | Activer / désactiver la démo bulles à éclater |
+| `c` | Activer / désactiver la démo bulle physique |
 | `q` | Quitter l'application |
 
-## Notes
+---
 
-- **MediaPipe 0.10+** n'expose plus `mp.solutions` — il faut utiliser la Tasks API (`mediapipe.tasks.python.vision.HandLandmarker`) et un fichier modèle `.task` séparé.
-- Le modèle `.task` est exclu du dépôt git (voir `.gitignore`) car il est téléchargé automatiquement.
-- `MOVEMENT_THRESHOLD` (défaut : 15 px) contrôle la sensibilité — diminuer la valeur pour détecter des mouvements plus subtils.
-- Le mode `VIDEO` (vs `IMAGE`) exploite la continuité temporelle pour un suivi plus stable.
-- Le prétraitement CLAHE améliore la détection en cas d'éclairage inégal.
-- Les filaments nécessitent que les **deux mains soient simultanément visibles** dans le champ de la webcam.
-- L'effet lumineux est obtenu par fusion additive d'un calque flou (GaussianBlur) sur la frame principale.
-- La démo bulles est indépendante des filaments — les deux modes peuvent être actifs simultanément.
-- Pour éclater une bulle : rapprocher le **pouce** (landmark 4) et l'**index** (landmark 8) à moins de 50 px, le point de pincement doit se trouver dans la bulle. Une nouvelle bulle apparaît automatiquement après l'animation d'éclatement.
-- Paramètres ajustables démo B : `PINCH_THRESHOLD` (sensibilité du pincement), `BUBBLE_RADIUS` (taille), `POP_DURATION` (durée de l'animation en frames).
-- La démo C utilise l'**index** (landmark 8) pour pousser une bulle avec physique : vitesse de l'index = vitesse de la bulle. La bulle rebondit sur les 4 bords et ralentit progressivement (amortissement `DAMPING = 0.97`).
-- Un cercle translucide indique la zone de contact autour de la bulle (démo C) ; une flèche montre sa vitesse et direction courantes.
-- Paramètres ajustables démo C : `PUSH_FACTOR` (intensité de la poussée), `PUSH_RADIUS` (zone de contact), `DAMPING` (friction), `MAX_VEL` (vitesse maximale).
+## Architecture du script
+
+| Fonction(s) | Rôle |
+|---|---|
+| `download_model()` | Téléchargement automatique du modèle `.task` au premier lancement |
+| `enhance_frame()` | Prétraitement CLAHE pour compenser l'éclairage inégal |
+| `draw_hand()` | Tracé des 21 landmarks et connexions de la main |
+| `draw_filaments()` | Démo A — filaments néon entre les extrémités des deux mains |
+| `new_bubble()` / `draw_bubble()` / `draw_pop()` | Démo B — bulle brillante à éclater par pincement |
+| `new_bubble_c()` / `push_bubble_c()` / `update_bubble_c()` / `draw_bubble_c()` | Démo C — bulle avec physique poussée par l'index |
+| `main()` | Boucle principale : capture webcam, détection MediaPipe, rendu, touches |
+
+---
+
+## Notes techniques
+
+**Général**
+- MediaPipe 0.10+ n'expose plus `mp.solutions` — la Tasks API (`mediapipe.tasks.python.vision.HandLandmarker`) et un fichier modèle `.task` séparé sont requis.
+- Le modèle `.task` est exclu du dépôt git (`.gitignore`) et téléchargé automatiquement.
+- Le mode `VIDEO` exploite la continuité temporelle entre frames pour un suivi plus stable qu'`IMAGE`.
+- `MOVEMENT_THRESHOLD` (défaut : 15 px) — diminuer pour détecter des mouvements plus subtils.
+
+**Démo A — Filaments (touche `a`)**
+- Nécessite les **deux mains simultanément** visibles dans le champ de la webcam.
+- Effet néon obtenu par fusion additive d'un calque GaussianBlur sur la frame.
+- Une couleur distincte par paire de doigts (pouce, index, majeur, annulaire, auriculaire).
+
+**Démo B — Bulles à éclater (touche `b`)**
+- Pincer le **pouce** (landmark 4) et l'**index** (landmark 8) à moins de `PINCH_THRESHOLD` px, le point médian doit toucher la bulle.
+- Une nouvelle bulle apparaît automatiquement après l'animation d'éclatement (anneaux + étincelles).
+- Paramètres : `PINCH_THRESHOLD`, `BUBBLE_RADIUS`, `POP_DURATION`.
+
+**Démo C — Bulle physique (touche `c`)**
+- L'**index** (landmark 8) pousse la bulle : vitesse du doigt = impulsion appliquée à la bulle.
+- La bulle rebondit sur les 4 bords et ralentit progressivement (`DAMPING = 0.97`).
+- Un cercle translucide indique la zone de contact ; une flèche montre la vitesse courante.
+- Paramètres : `PUSH_FACTOR`, `PUSH_RADIUS`, `DAMPING`, `MAX_VEL`.
