@@ -127,6 +127,7 @@ def main():
     # --- Démo F ---
     show_f          = False
     gesture_history = {}
+    hand_sizes      = {}
 
     # --- Démo G ---
     show_g        = False
@@ -188,6 +189,9 @@ def main():
 
                 if show_f:
                     demo_f.update_history(gesture_history, idx, hand_landmarks)
+                    wx = int(hand_landmarks[0].x * w)
+                    wy = int(hand_landmarks[0].y * h)
+                    hand_sizes[idx] = int(((cx - wx) ** 2 + (cy - wy) ** 2) ** 0.5)
 
                 if show_g:
                     demo_g.update_trails(trail_history, idx, hand_landmarks, w, h)
@@ -224,7 +228,7 @@ def main():
             active_ids = set(range(len(results.hand_landmarks or [])))
 
             if show_f:
-                demo_f.render(frame, gesture_history, active_ids, current_positions, w, h)
+                demo_f.render(frame, gesture_history, active_ids, current_positions, hand_sizes, w, h)
 
             if show_g:
                 demo_g.render(frame, trail_history, active_ids, w, h)

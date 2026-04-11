@@ -53,7 +53,7 @@ def detect_gesture(lm):
     return None, None
 
 
-def _draw_dr_strange_circle(frame, cx, cy):
+def _draw_dr_strange_circle(frame, cx, cy, r):
     """Cercle magique avec pentagramme tournant et étincelles, style Dr Strange."""
     t       = time.time()
     angle   = math.degrees(t * 1.8) % 360   # pentagramme : ~1 tour / 3,5 s
@@ -62,8 +62,6 @@ def _draw_dr_strange_circle(frame, cx, cy):
     orange      = (  0, 120, 255)  # orange vif (BGR)
     orange_dark = (  0,  55, 180)  # orange sombre pour le halo
     white_warm  = (180, 200, 255)  # blanc chaud pour les tracés nets
-
-    r = _CIRCLE_R
     glow = np.zeros_like(frame, dtype=np.uint8)
 
     # ── Cercles concentriques ──────────────────────────────────────────────
@@ -146,7 +144,7 @@ def update_history(gesture_history, idx, hand_landmarks):
     gesture_history[idx].append((name, gcolor))
 
 
-def render(frame, gesture_history, active_ids, current_positions, w, h):
+def render(frame, gesture_history, active_ids, current_positions, hand_sizes, w, h):
     """Affiche les étiquettes de gestes lissés, purge les mains disparues."""
     for idx in list(gesture_history.keys()):
         if idx not in active_ids:
@@ -164,5 +162,7 @@ def render(frame, gesture_history, active_ids, current_positions, w, h):
             )
             pcx, pcy = current_positions.get(idx, (w // 2, h // 2))
             if best == "Dr Strange !":
-                _draw_dr_strange_circle(frame, pcx, pcy)
-            draw_gesture_label(frame, best, gcolor, pcx, pcy, w, h)
+                r = max(_CIRCLE_R, hand_sizes.get(idx, _CIRCLE_R))
+                _draw_dr_strange_circle(frame, pcx, pcy, r)
+            else:
+                draw_gesture_label(frame, best, gcolor, pcx, pcy, w, h)
