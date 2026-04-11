@@ -27,8 +27,10 @@ def detect_gesture(lm):
 
     if thumb_up and not index_ext and not middle_ext and not ring_ext and not pinky_ext:
         return "Pouce leve !", (0, 200, 255)
+    # Pouce écarté : tip (4) loin du MCP de l'index (5), quelle que soit l'orientation
+    thumb_spread = _tips_distance(lm, 4, 5) > 0.13
     fingers_together = _tips_distance(lm, 8, 12) < 0.07
-    if thumb_up and index_ext and middle_ext and not ring_ext and not pinky_ext and fingers_together:
+    if thumb_spread and index_ext and middle_ext and not ring_ext and not pinky_ext and fingers_together:
         return "Dr Strange !", (0, 140, 255)
     if index_ext and middle_ext and not ring_ext and not pinky_ext and not thumb_up:
         return "Victoire !", (100, 255, 100)
