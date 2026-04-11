@@ -20,6 +20,8 @@ def detect_gesture(lm):
 
     if thumb_up and not index_ext and not middle_ext and not ring_ext and not pinky_ext:
         return "Pouce leve !", (0, 200, 255)
+    if thumb_up and index_ext and middle_ext and not ring_ext and not pinky_ext:
+        return "Dr Strange !", (0, 140, 255)
     if index_ext and middle_ext and not ring_ext and not pinky_ext:
         return "Victoire !", (100, 255, 100)
     if not index_ext and not middle_ext and not ring_ext and not pinky_ext and not thumb_up:
