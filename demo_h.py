@@ -61,10 +61,18 @@ def update(bubble, hands_by_side, w, h):
     if left is not None and right is not None:
         lx, ly = _palm(left,  w, h)
         rx, ry = _palm(right, w, h)
-        tcx  = (lx + rx) * 0.5
-        tcy  = (ly + ry) * 0.5
-        dist = math.hypot(lx - rx, ly - ry)
-        tr   = max(BUBBLE_H_MIN_R, min(BUBBLE_H_MAX_R, dist / 2.2))
+        tcx = (lx + rx) * 0.5
+        tcy = (ly + ry) * 0.5
+
+        # Rayon cible = distance moyenne du centre aux 5 bouts de doigts de chaque main
+        tip_dists = []
+        for lm in (left, right):
+            for lm_idx in FINGERTIPS:
+                tx = lm[lm_idx].x * w
+                ty = lm[lm_idx].y * h
+                tip_dists.append(math.hypot(tx - tcx, ty - tcy))
+        tr = max(BUBBLE_H_MIN_R, min(BUBBLE_H_MAX_R,
+                                     sum(tip_dists) / len(tip_dists)))
 
         if bubble["alpha"] == 0.0:
             bubble["cx"], bubble["cy"], bubble["r"] = tcx, tcy, tr
