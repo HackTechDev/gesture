@@ -147,6 +147,9 @@ def main():
     show_h   = False
     bubble_h = None
 
+    # --- Landmarks ---
+    show_landmarks = True
+
     with HandLandmarker.create_from_options(options) as landmarker:
         while True:
             ret, frame = cap.read()
@@ -171,11 +174,13 @@ def main():
             hands_by_side     = {}
 
             for idx, hand_landmarks in enumerate(results.hand_landmarks or []):
-                draw_hand(frame, hand_landmarks, w, h)
+                if show_landmarks:
+                    draw_hand(frame, hand_landmarks, w, h)
 
                 cx, cy = palm_center(hand_landmarks, w, h)
                 current_positions[idx] = (cx, cy)
-                cv2.circle(frame, (cx, cy), 7, (255, 0, 0), -1)
+                if show_landmarks:
+                    cv2.circle(frame, (cx, cy), 7, (255, 0, 0), -1)
 
                 if idx in prev_positions:
                     px, py = prev_positions[idx]
@@ -183,7 +188,8 @@ def main():
                     if dist > MOVEMENT_THRESHOLD:
                         status_text  = f"Mouvement detecte !  ({dist:.0f} px)"
                         status_color = (0, 80, 255)
-                        cv2.arrowedLine(frame, (px, py), (cx, cy), (0, 0, 255), 2, tipLength=0.4)
+                        if show_landmarks:
+                            cv2.arrowedLine(frame, (px, py), (cx, cy), (0, 0, 255), 2, tipLength=0.4)
                     else:
                         status_text  = "Main immobile"
                         status_color = (0, 220, 0)
@@ -271,8 +277,8 @@ def main():
                 cv2.putText(frame, f"{label} : {state}", (10, 28 + row * 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes g:trainées h:bulle q:quitter",
-                        (w - 790, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (180, 180, 180), 1)
+            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes g:trainées h:bulle i:landmarks q:quitter",
+                        (w - 870, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (180, 180, 180), 1)
 
             # --- FPS ---
             if len(fps_times) >= 2:
@@ -327,6 +333,8 @@ def main():
                     bubble_h = demo_h.new_bubble_h()
                 else:
                     bubble_h = None
+            elif key == ord("i"):
+                show_landmarks = not show_landmarks
 
     cap.release()
     cv2.destroyAllWindows()
