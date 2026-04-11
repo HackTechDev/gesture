@@ -48,6 +48,7 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 | `f` | Activer / désactiver la reconnaissance de gestes |
 | `g` | Activer / désactiver les traînées de mouvement sur les doigts |
 | `h` | Activer / désactiver la bulle d'eau modelable |
+| `i` | Afficher / masquer le squelette de la main (traits, points, flèche) |
 | `q` | Quitter l'application |
 
 ---
@@ -65,7 +66,8 @@ Le projet est découpé en plusieurs fichiers, un par démo :
 | `demo_d.py` | Démo D — dessin dans l'air avec l'index, effacement main ouverte, palette de couleurs |
 | `demo_f.py` | Démo F — reconnaissance de gestes (Pouce levé, Victoire, Poing, Main ouverte, Index pointé, Metal) |
 | `demo_g.py` | Démo G — traînées de mouvement lumineuses sur les 5 bouts de doigts |
-| `demo_h.py` | Démo H — bulle d'eau en apesanteur modelable avec les deux mains |
+| `demo_h.py` | Démo H — bulle d'eau 3D en apesanteur modelable avec les deux mains |
+| `config.py` | Tous les paramètres ajustables centralisés (caméra, MediaPipe, démos) |
 
 Fonctions utilitaires dans `hand_motion.py` :
 
@@ -86,6 +88,9 @@ Fonctions utilitaires dans `hand_motion.py` :
 - Le modèle `.task` est exclu du dépôt git (`.gitignore`) et téléchargé automatiquement.
 - Le mode `VIDEO` exploite la continuité temporelle entre frames pour un suivi plus stable qu'`IMAGE`.
 - `MOVEMENT_THRESHOLD` (défaut : 15 px) — diminuer pour détecter des mouvements plus subtils.
+- Touche `i` : masque / affiche le squelette de la main (traits, points aux articulations, flèche de mouvement). Utile pour les démos visuelles comme la bulle d'eau.
+- Le FPS est affiché en bas à droite en temps réel (vert ≥ 25 fps, orange ≥ 15 fps, rouge < 15 fps).
+- Tous les paramètres ajustables sont centralisés dans `config.py`.
 
 **Démo A — Filaments (touche `a`)**
 - Nécessite les **deux mains simultanément** visibles dans le champ de la webcam.
@@ -112,12 +117,14 @@ Fonctions utilitaires dans `hand_motion.py` :
 - Le dessin persiste sur un calque fusionné additivement sur la frame (zones noires = transparentes).
 - Paramètres : `DRAW_COLORS` (liste de couleurs BGR), `DRAW_THICKNESS` (épaisseur du trait).
 
-**Démo H — Bulle d'eau modelable (touche `h`)**
-- Nécessite les **deux mains** visibles : la bulle apparaît au point médian entre les deux paumes et disparaît en fondu si une main quitte le champ.
-- **Taille** : pilotée par l'écartement entre les mains — écarter les mains gonfle la bulle, les rapprocher la rétrécit (rayon entre `BUBBLE_H_MIN_R` et `BUBBLE_H_MAX_R`).
-- **Position** : suit le centre des deux paumes avec un ressort amorti (`_SPRING_K`, `_SPRING_D`) pour un mouvement fluide.
-- **Modelage** : chaque paume qui touche la surface crée une indentation (cuvette sombre avec bord lumineux et mini-bulle d'air intérieure).
-- Rendu eau en 9 couches : halo gaussien additif, corps translucide, volume intérieur, 5 caustiques animées, indentations, rim Fresnel, surbrillance spéculaire principale et secondaire, contour final.
+**Démo H — Bulle d'eau 3D modelable (touche `h`)**
+- Nécessite les **deux mains** visibles : la bulle apparaît au centre des deux paumes et disparaît en fondu si une main quitte le champ.
+- **Taille** : le rayon cible est la distance moyenne du centre aux 10 bouts de doigts — la surface de la bulle passe naturellement par les extrémités des doigts.
+- **Position** : suit le centre des deux paumes avec un ressort amorti pour un mouvement fluide.
+- **Modelage 3D** : maillage de 48 points de contrôle avec physique ressort-masse + propagation d'onde (effet jelly). Chaque doigt (5 bouts + paume, par main) déforme la surface indépendamment — depuis l'extérieur : enfonce la surface ; depuis l'intérieur : la gonfle.
+- Rendu sphère 3D en 9 couches : halo gaussien additif, corps translucide, face illuminée décalée (volume), cœur lumineux, limb darkening (bords assombris), 5 caustiques animées, rim Fresnel, surbrillances spéculaires, contour final déformé.
+- Conseil : combiner avec `i` pour masquer le squelette et profiter pleinement de l'effet.
+- Paramètres dans `config.py` : `BUBBLE_H_MIN_R`, `BUBBLE_H_MAX_R`.
 
 **Démo G — Traînées de mouvement (touche `g`)**
 - Chaque bout de doigt (pouce, index, majeur, annulaire, auriculaire) laisse une traînée lumineuse sur les `TRAIL_LENGTH` dernières positions (défaut : 22 frames).

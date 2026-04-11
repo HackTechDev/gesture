@@ -12,8 +12,11 @@
 - [ ] Plusieurs bulles qui se percutent entre elles (collisions inter-bulles)
 - [ ] Obstacles fixes sur l'écran à éviter
 
-## Démo H — Bulle d'eau
+## Démo H — Bulle d'eau 3D
 
+- [x] Maillage déformable 3D (48 points, ressort-masse + propagation d'onde)
+- [x] Contour calé sur les bouts des doigts (rayon = distance moyenne centre → fingertips)
+- [x] Interaction multi-doigts (5 tips + paume par main, poussée intérieure/extérieure)
 - [ ] Plusieurs bulles simultanées qui rebondissent entre elles
 - [ ] Gravité légère (la bulle tombe doucement si les mains s'éloignent)
 - [ ] Éclater la bulle en pinçant les deux mains ensemble
@@ -31,6 +34,10 @@
 - [ ] Fond noir ou flou cinématique derrière les landmarks pour mieux les isoler
 - [x] Traînées de mouvement (motion trail) sur les doigts — Démo G (touche `g`)
 - [ ] Particules qui suivent les extrémités des doigts en permanence
+
+## Interface
+
+- [x] Touche `i` : masquer / afficher le squelette de la main
 
 ## Architecture
 
