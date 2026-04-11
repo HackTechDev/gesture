@@ -28,6 +28,9 @@ HandLandmarker = vision.HandLandmarker
 HandLandmarkerOptions = vision.HandLandmarkerOptions
 VisionRunningMode = vision.RunningMode
 
+# --- Fenêtre ---
+WINDOW_NAME = "Detection de mouvement de la main"
+
 # --- Modèle ---
 MODEL_PATH = "hand_landmarker_full.task"
 MODEL_URL  = (
@@ -149,6 +152,10 @@ def main():
 
     # --- Landmarks ---
     show_landmarks = True
+
+    # --- Fenêtre ---
+    fullscreen = False
+    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
 
     with HandLandmarker.create_from_options(options) as landmarker:
         while True:
@@ -277,8 +284,8 @@ def main():
                 cv2.putText(frame, f"{label} : {state}", (10, 28 + row * 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes g:trainées h:bulle i:landmarks q:quitter",
-                        (w - 870, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (180, 180, 180), 1)
+            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes g:trainées h:bulle i:landmarks j:fullscreen q:quitter",
+                        (w - 960, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (180, 180, 180), 1)
 
             # --- FPS ---
             if len(fps_times) >= 2:
@@ -287,7 +294,7 @@ def main():
                 cv2.putText(frame, f"FPS: {fps:.0f}", (w - 100, h - 12),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, fps_color, 2)
 
-            cv2.imshow("Detection de mouvement de la main", frame)
+            cv2.imshow(WINDOW_NAME, frame)
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord("q"):
@@ -335,6 +342,12 @@ def main():
                     bubble_h = None
             elif key == ord("i"):
                 show_landmarks = not show_landmarks
+            elif key == ord("j"):
+                fullscreen = not fullscreen
+                cv2.setWindowProperty(
+                    WINDOW_NAME, cv2.WND_PROP_FULLSCREEN,
+                    cv2.WINDOW_FULLSCREEN if fullscreen else cv2.WINDOW_NORMAL,
+                )
 
     cap.release()
     cv2.destroyAllWindows()
