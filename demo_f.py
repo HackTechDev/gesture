@@ -30,7 +30,7 @@ def detect_gesture(lm):
     fingers_together = _tips_distance(lm, 8, 12) < 0.07
     if thumb_up and index_ext and middle_ext and not ring_ext and not pinky_ext and fingers_together:
         return "Dr Strange !", (0, 140, 255)
-    if index_ext and middle_ext and not ring_ext and not pinky_ext:
+    if index_ext and middle_ext and not ring_ext and not pinky_ext and not thumb_up:
         return "Victoire !", (100, 255, 100)
     if not index_ext and not middle_ext and not ring_ext and not pinky_ext and not thumb_up:
         return "Poing !", (80, 80, 255)
