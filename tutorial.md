@@ -76,9 +76,11 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 - Une couleur distincte par paire de doigts (pouce, index, majeur, annulaire, auriculaire).
 
 **Démo B — Bulles à éclater (touche `b`)**
-- Pincer le **pouce** (landmark 4) et l'**index** (landmark 8) à moins de `PINCH_THRESHOLD` px, le point médian doit toucher la bulle.
-- Une nouvelle bulle apparaît automatiquement après l'animation d'éclatement (anneaux + étincelles).
-- Paramètres : `PINCH_THRESHOLD`, `BUBBLE_RADIUS`, `POP_DURATION`.
+- `BUBBLE_COUNT` bulles (défaut : 5) apparaissent simultanément, positionnées sans chevauchement.
+- Pincer le **pouce** (landmark 4) et l'**index** (landmark 8) à moins de `PINCH_THRESHOLD` px sur une bulle pour l'éclater — une nouvelle bulle remplace immédiatement celle éclatée.
+- La partie dure `GAME_DURATION` secondes (défaut : 30 s) : une barre de progression et un compteur de secondes sont affichés en haut au centre, le score en temps réel à droite.
+- À la fin du temps, un écran de fin affiche le score final ; appuyer à nouveau sur `b` relance une partie.
+- Paramètres : `PINCH_THRESHOLD`, `BUBBLE_RADIUS`, `BUBBLE_COUNT`, `GAME_DURATION`, `POP_DURATION`.
 
 **Démo C — Bulle physique (touche `c`)**
 - L'**index** (landmark 8) pousse la bulle : vitesse du doigt = impulsion appliquée à la bulle.

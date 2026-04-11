@@ -1,6 +1,7 @@
 import urllib.request
 import os
 import random
+import time
 import cv2
 import numpy as np
 import mediapipe as mp
@@ -21,8 +22,10 @@ MODEL_URL = (
 
 MOVEMENT_THRESHOLD = 15   # pixels
 PINCH_THRESHOLD    = 50   # pixels — distance pouce/index pour considérer un pincement
-BUBBLE_RADIUS      = 45   # pixels
+BUBBLE_RADIUS      = 40   # pixels
 POP_DURATION       = 18   # frames d'animation d'éclatement
+BUBBLE_COUNT       = 5    # nombre de bulles simultanées (démo B)
+GAME_DURATION      = 30   # secondes par partie (démo B)
 
 # Démo C — bulle physique
 BUBBLE_RADIUS_C = 50
@@ -116,14 +119,17 @@ def draw_filaments(frame, left_lm, right_lm, w, h):
 # Bulle (démo B — éclatement par pincement)
 # ---------------------------------------------------------------------------
 
-def new_bubble(w, h):
+def new_bubble(w, h, existing=None):
+    """Crée une bulle à une position qui ne chevauche pas les bulles existantes."""
     margin = BUBBLE_RADIUS + 20
-    return {
-        "cx":    random.randint(margin, w - margin),
-        "cy":    random.randint(margin + 60, h - margin - 60),
-        "r":     BUBBLE_RADIUS,
-        "color": random.choice(BUBBLE_PALETTE),
-    }
+    existing = existing or []
+    for _ in range(30):  # 30 tentatives max
+        cx = random.randint(margin, w - margin)
+        cy = random.randint(margin + 80, h - margin - 60)
+        if all(((cx - b["cx"]) ** 2 + (cy - b["cy"]) ** 2) ** 0.5 > BUBBLE_RADIUS * 2.5
+               for b in existing):
+            break
+    return {"cx": cx, "cy": cy, "r": BUBBLE_RADIUS, "color": random.choice(BUBBLE_PALETTE)}
 
 
 def draw_bubble(frame, bubble):
@@ -304,8 +310,10 @@ def main():
     prev_positions  = {}
     show_filaments  = False
     show_bubble     = False
-    bubble          = None
-    pop             = None    # animation en cours : dict ou None
+    bubbles         = []      # liste de bulles actives
+    pops            = []      # animations d'éclatement en cours
+    score           = 0
+    game_start      = None    # timestamp de début de partie
     show_demo_c     = False
     bubble_c        = None
     prev_index_c    = {}      # idx -> (x, y) frame précédente
@@ -364,22 +372,24 @@ def main():
                         push_bubble_c(bubble_c, ix, iy, *prev_index_c[idx])
                     prev_index_c[idx] = (ix, iy)
 
-                # --- Détection du pincement pouce/index ---
-                if show_bubble and bubble is not None:
+                # --- Détection du pincement pouce/index (démo B) ---
+                if show_bubble and bubbles:
                     tx = int(hand_landmarks[4].x * w)
                     ty = int(hand_landmarks[4].y * h)
                     ix = int(hand_landmarks[8].x * w)
                     iy = int(hand_landmarks[8].y * h)
-
                     pinch_dist = ((tx - ix) ** 2 + (ty - iy) ** 2) ** 0.5
                     mid_x, mid_y = (tx + ix) // 2, (ty + iy) // 2
-                    mid_to_bubble = ((mid_x - bubble["cx"]) ** 2 + (mid_y - bubble["cy"]) ** 2) ** 0.5
 
-                    if pinch_dist < PINCH_THRESHOLD and mid_to_bubble < bubble["r"] + 20:
-                        # Éclatement !
-                        pop    = {"cx": bubble["cx"], "cy": bubble["cy"],
-                                  "color": bubble["color"], "frames_left": POP_DURATION}
-                        bubble = None
+                    if pinch_dist < PINCH_THRESHOLD:
+                        for b in bubbles[:]:
+                            if ((mid_x - b["cx"]) ** 2 + (mid_y - b["cy"]) ** 2) ** 0.5 < b["r"] + 20:
+                                pops.append({"cx": b["cx"], "cy": b["cy"],
+                                             "color": b["color"], "frames_left": POP_DURATION})
+                                bubbles.remove(b)
+                                score += 1
+                                bubbles.append(new_bubble(w, h, bubbles))
+                                break
 
             prev_positions = current_positions
             if not show_demo_c:
@@ -389,16 +399,43 @@ def main():
             if show_filaments and "Left" in hands_by_side and "Right" in hands_by_side:
                 draw_filaments(frame, hands_by_side["Left"], hands_by_side["Right"], w, h)
 
-            # --- Bulle ---
+            # --- Démo B : bulles + score + minuterie ---
             if show_bubble:
-                if bubble is not None:
-                    draw_bubble(frame, bubble)
-                if pop is not None:
+                now = time.time()
+                elapsed = now - game_start
+                remaining = max(0, GAME_DURATION - elapsed)
+
+                if remaining > 0:
+                    for b in bubbles:
+                        draw_bubble(frame, b)
+                else:
+                    # Temps écoulé — afficher l'écran de fin par-dessus
+                    overlay = frame.copy()
+                    cv2.rectangle(overlay, (w//2 - 220, h//2 - 70), (w//2 + 220, h//2 + 70),
+                                  (20, 20, 20), -1)
+                    cv2.addWeighted(overlay, 0.75, frame, 0.25, 0, frame)
+                    cv2.putText(frame, "TEMPS ECOULE !", (w//2 - 160, h//2 - 20),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 80, 255), 3)
+                    cv2.putText(frame, f"Score final : {score}", (w//2 - 120, h//2 + 30),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+                    cv2.putText(frame, "Appuyez sur B pour rejouer", (w//2 - 190, h//2 + 65),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (180, 180, 180), 1)
+
+                for pop in pops[:]:
                     draw_pop(frame, pop)
                     pop["frames_left"] -= 1
                     if pop["frames_left"] <= 0:
-                        pop    = None
-                        bubble = new_bubble(w, h)
+                        pops.remove(pop)
+
+                # HUD score + minuterie
+                bar_w = int((remaining / GAME_DURATION) * 300)
+                bar_color = (0, 220, 0) if remaining > 10 else (0, 80, 255)
+                cv2.rectangle(frame, (w//2 - 150, 12), (w//2 + 150, 30), (60, 60, 60), -1)
+                cv2.rectangle(frame, (w//2 - 150, 12), (w//2 - 150 + bar_w, 30), bar_color, -1)
+                cv2.putText(frame, f"{int(remaining)}s", (w//2 - 20, 27),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)
+                cv2.putText(frame, f"Score : {score}", (w//2 + 160, 27),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (100, 255, 180), 2)
 
             # --- Démo C ---
             if show_demo_c and bubble_c is not None:
@@ -438,11 +475,17 @@ def main():
             elif key == ord("b"):
                 show_bubble = not show_bubble
                 if show_bubble:
-                    bubble = new_bubble(w, h)
-                    pop    = None
+                    bubbles    = [new_bubble(w, h, [])]
+                    for _ in range(BUBBLE_COUNT - 1):
+                        bubbles.append(new_bubble(w, h, bubbles))
+                    pops       = []
+                    score      = 0
+                    game_start = time.time()
                 else:
-                    bubble = None
-                    pop    = None
+                    bubbles    = []
+                    pops       = []
+                    score      = 0
+                    game_start = None
             elif key == ord("c"):
                 show_demo_c = not show_demo_c
                 if show_demo_c:
