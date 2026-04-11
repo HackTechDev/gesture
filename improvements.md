@@ -29,6 +29,7 @@
 - [x] Démo F — Geste Dr Strange : cercle magique animé (pentagramme + runes + étincelles) adapté à la taille de la main
 - [x] Démo G — Traînées de mouvement (motion trail) sur les 5 bouts de doigts avec halo néon
 - [x] Démo K — Galaxie spirale 3D en couleur tournante entre les mains, déplaçable et inclinable
+- [x] Démo L — Puzzle 3×3 : reconstituer linux.jpg en déplaçant les pièces avec l'index, déposer en faisant un poing
 
 ## Qualité visuelle
 

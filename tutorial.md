@@ -49,6 +49,7 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 | `g` | Activer / désactiver les traînées de mouvement sur les doigts |
 | `h` | Activer / désactiver la bulle d'eau modelable |
 | `k` | Activer / désactiver la galaxie spirale 3D |
+| `l` | Activer / désactiver le puzzle (linux.jpg) |
 | `i` | Afficher / masquer le squelette de la main (traits, points, flèche) |
 | `j` | Basculer en plein écran / fenêtré |
 | `q` | Quitter l'application |
@@ -70,6 +71,7 @@ Le projet est découpé en plusieurs fichiers, un par démo :
 | `demo_g.py` | Démo G — traînées de mouvement lumineuses sur les 5 bouts de doigts |
 | `demo_h.py` | Démo H — bulle d'eau 3D en apesanteur modelable avec les deux mains |
 | `demo_k.py` | Démo K — galaxie spirale 3D tournante, déplaçable et inclinable avec les deux mains |
+| `demo_l.py` | Démo L — puzzle 3×3 : reconstituer linux.jpg en déplaçant les pièces avec l'index |
 | `config.py` | Tous les paramètres ajustables centralisés (caméra, MediaPipe, démos) |
 
 Fonctions utilitaires dans `hand_motion.py` :
@@ -128,6 +130,14 @@ Fonctions utilitaires dans `hand_motion.py` :
 - Rendu sphère 3D en 9 couches : halo gaussien additif, corps translucide, face illuminée décalée (volume), cœur lumineux, limb darkening (bords assombris), 5 caustiques animées, rim Fresnel, surbrillances spéculaires, contour final déformé.
 - Conseil : combiner avec `i` pour masquer le squelette et profiter pleinement de l'effet.
 - Paramètres dans `config.py` : `BUBBLE_H_MIN_R`, `BUBBLE_H_MAX_R`.
+
+**Démo L — Puzzle (touche `l`)**
+- Charge `linux.jpg` et la découpe en **9 pièces** (grille 3×3), disposées aléatoirement à l'écran.
+- **Attraper** : pointer l'**index seul** sur une pièce — elle suit le bout du doigt.
+- **Déposer** : fermer la main en **poing** — si la pièce est à moins de 55 px de sa case cible, elle se cale automatiquement (magnétisme).
+- La grille cible est toujours visible au centre pour guider le placement. Les pièces posées sont encadrées en vert.
+- Un compteur `X / 9` indique l'avancement ; un message de victoire apparaît quand le puzzle est complet.
+- Conseil : combiner avec `i` pour masquer le squelette et mieux voir les pièces.
 
 **Démo K — Galaxie spirale 3D (touche `k`)**
 - Nécessite les **deux mains** simultanément : la galaxie apparaît au point milieu entre les deux paumes.

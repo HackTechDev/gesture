@@ -16,6 +16,7 @@ import demo_f
 import demo_g
 import demo_h
 import demo_k
+import demo_l
 from config import (
     CAMERA_INDEX, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS,
     MOVEMENT_THRESHOLD, FPS_SMOOTHING,
@@ -155,6 +156,10 @@ def main():
     show_k = False
     galaxy  = None
 
+    # --- Démo L ---
+    show_l = False
+    puzzle  = None
+
     # --- Landmarks ---
     show_landmarks = True
 
@@ -274,6 +279,12 @@ def main():
                 demo_k.update(galaxy, hands_by_side, w, h)
                 demo_k.render(frame, galaxy, w, h)
 
+            if show_l:
+                if puzzle is None:
+                    puzzle = demo_l.new_puzzle(w, h)
+                demo_l.update(puzzle, hands_by_side, w, h)
+                demo_l.render(frame, puzzle, w, h)
+
             # --- UI ---
             cv2.rectangle(frame, (0, h - 42), (w, h), (30, 30, 30), -1)
             cv2.putText(frame, status_text, (10, h - 12),
@@ -288,14 +299,15 @@ def main():
                 ("Trainées",   show_g),
                 ("Bulle eau",  show_h),
                 ("Galaxie",    show_k),
+                ("Puzzle",     show_l),
             ]):
                 color = (0, 220, 255) if active else (120, 120, 120)
                 state = "ON" if active else "OFF"
                 cv2.putText(frame, f"{label} : {state}", (10, 28 + row * 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes g:trainées h:bulle k:galaxie i:landmarks j:fullscreen q:quitter",
-                        (w - 1020, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (180, 180, 180), 1)
+            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes g:trainées h:bulle k:galaxie l:puzzle i:landmarks j:fullscreen q:quitter",
+                        (w - 1080, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (180, 180, 180), 1)
 
             # --- FPS ---
             if len(fps_times) >= 2:
@@ -356,6 +368,10 @@ def main():
                     galaxy = demo_k.new_galaxy()
                 else:
                     galaxy = None
+            elif key == ord("l"):
+                show_l = not show_l
+                if not show_l:
+                    puzzle = None
             elif key == ord("i"):
                 show_landmarks = not show_landmarks
             elif key == ord("j"):
