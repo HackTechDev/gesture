@@ -24,6 +24,13 @@ PINCH_THRESHOLD    = 50   # pixels — distance pouce/index pour considérer un 
 BUBBLE_RADIUS      = 45   # pixels
 POP_DURATION       = 18   # frames d'animation d'éclatement
 
+# Démo C — bulle physique
+BUBBLE_RADIUS_C = 50
+PUSH_RADIUS     = BUBBLE_RADIUS_C + 50  # zone de contact autour de la bulle
+PUSH_FACTOR     = 0.45                  # intensité de la poussée
+DAMPING         = 0.97                  # friction par frame
+MAX_VEL         = 28                    # vitesse maximale en px/frame
+
 HAND_CONNECTIONS = [
     (0, 1), (1, 2), (2, 3), (3, 4),
     (0, 5), (5, 6), (6, 7), (7, 8),
@@ -106,7 +113,7 @@ def draw_filaments(frame, left_lm, right_lm, w, h):
 
 
 # ---------------------------------------------------------------------------
-# Bulle
+# Bulle (démo B — éclatement par pincement)
 # ---------------------------------------------------------------------------
 
 def new_bubble(w, h):
@@ -168,6 +175,104 @@ def draw_pop(frame, pop):
 
 
 # ---------------------------------------------------------------------------
+# Bulle physique (démo C — poussée par l'index)
+# ---------------------------------------------------------------------------
+
+def new_bubble_c(w, h):
+    margin = BUBBLE_RADIUS_C + 20
+    return {
+        "cx":    float(random.randint(margin, w - margin)),
+        "cy":    float(random.randint(margin + 80, h - margin - 60)),
+        "r":     BUBBLE_RADIUS_C,
+        "vx":    0.0,
+        "vy":    0.0,
+        "color": random.choice(BUBBLE_PALETTE),
+    }
+
+
+def push_bubble_c(bubble, ix, iy, prev_ix, prev_iy):
+    """Applique une impulsion à la bulle proportionnelle à la vitesse de l'index."""
+    dx   = bubble["cx"] - ix
+    dy   = bubble["cy"] - iy
+    dist = (dx ** 2 + dy ** 2) ** 0.5
+
+    if dist < PUSH_RADIUS:
+        # Impulsion = vitesse de l'index
+        bubble["vx"] += (ix - prev_ix) * PUSH_FACTOR
+        bubble["vy"] += (iy - prev_iy) * PUSH_FACTOR
+
+        # Répulsion directe si l'index est à l'intérieur de la bulle
+        if 0 < dist < bubble["r"] + 10:
+            repulse = (bubble["r"] + 10 - dist) * 0.6
+            bubble["vx"] += (dx / dist) * repulse
+            bubble["vy"] += (dy / dist) * repulse
+
+
+def update_bubble_c(bubble, w, h):
+    """Déplace la bulle et gère les rebonds sur les bords."""
+    bubble["cx"] += bubble["vx"]
+    bubble["cy"] += bubble["vy"]
+
+    r = bubble["r"]
+    ui_top, ui_bot = 80, 42   # hauteur des bandeaux UI
+
+    if bubble["cx"] - r < 0:
+        bubble["cx"] = float(r)
+        bubble["vx"] = abs(bubble["vx"])
+    elif bubble["cx"] + r > w:
+        bubble["cx"] = float(w - r)
+        bubble["vx"] = -abs(bubble["vx"])
+
+    if bubble["cy"] - r < ui_top:
+        bubble["cy"] = float(ui_top + r)
+        bubble["vy"] = abs(bubble["vy"])
+    elif bubble["cy"] + r > h - ui_bot:
+        bubble["cy"] = float(h - ui_bot - r)
+        bubble["vy"] = -abs(bubble["vy"])
+
+    # Amortissement
+    bubble["vx"] *= DAMPING
+    bubble["vy"] *= DAMPING
+
+    # Limite de vitesse
+    speed = (bubble["vx"] ** 2 + bubble["vy"] ** 2) ** 0.5
+    if speed > MAX_VEL:
+        bubble["vx"] = bubble["vx"] / speed * MAX_VEL
+        bubble["vy"] = bubble["vy"] / speed * MAX_VEL
+
+
+def draw_bubble_c(frame, bubble):
+    """Dessine la bulle physique avec un anneau de contact visible."""
+    cx, cy = int(bubble["cx"]), int(bubble["cy"])
+    r, color = bubble["r"], bubble["color"]
+
+    # Zone de poussée (cercle fin et translucide)
+    zone_layer = frame.copy()
+    cv2.circle(zone_layer, (cx, cy), PUSH_RADIUS, color, 1)
+    cv2.addWeighted(zone_layer, 0.15, frame, 0.85, 0, frame)
+
+    # Corps translucide
+    overlay = frame.copy()
+    cv2.circle(overlay, (cx, cy), r, color, -1)
+    cv2.addWeighted(overlay, 0.35, frame, 0.65, 0, frame)
+
+    # Contour + reflets
+    cv2.circle(frame, (cx, cy), r, color, 2)
+    hl_x, hl_y = cx - r // 3, cy - r // 3
+    axes = (max(r // 4, 4), max(r // 6, 3))
+    cv2.ellipse(frame, (hl_x, hl_y), axes, -35, 0, 360, (255, 255, 255), -1)
+    cv2.circle(frame, (cx + r // 4, cy + r // 4), max(r // 10, 2), (255, 255, 255), -1)
+
+    # Vecteur vitesse (flèche indicative)
+    speed = (bubble["vx"] ** 2 + bubble["vy"] ** 2) ** 0.5
+    if speed > 1.0:
+        scale = min(speed * 3, 60)
+        ex = int(cx + bubble["vx"] / speed * scale)
+        ey = int(cy + bubble["vy"] / speed * scale)
+        cv2.arrowedLine(frame, (cx, cy), (ex, ey), color, 1, tipLength=0.3)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -200,7 +305,10 @@ def main():
     show_filaments  = False
     show_bubble     = False
     bubble          = None
-    pop             = None   # animation en cours : dict ou None
+    pop             = None    # animation en cours : dict ou None
+    show_demo_c     = False
+    bubble_c        = None
+    prev_index_c    = {}      # idx -> (x, y) frame précédente
 
     with HandLandmarker.create_from_options(options) as landmarker:
         while True:
@@ -248,6 +356,14 @@ def main():
                     side = results.handedness[idx][0].display_name
                     hands_by_side[side] = hand_landmarks
 
+                # --- Démo C : poussée de la bulle par l'index ---
+                if show_demo_c and bubble_c is not None:
+                    ix = int(hand_landmarks[8].x * w)
+                    iy = int(hand_landmarks[8].y * h)
+                    if idx in prev_index_c:
+                        push_bubble_c(bubble_c, ix, iy, *prev_index_c[idx])
+                    prev_index_c[idx] = (ix, iy)
+
                 # --- Détection du pincement pouce/index ---
                 if show_bubble and bubble is not None:
                     tx = int(hand_landmarks[4].x * w)
@@ -266,6 +382,8 @@ def main():
                         bubble = None
 
             prev_positions = current_positions
+            if not show_demo_c:
+                prev_index_c.clear()
 
             # --- Filaments ---
             if show_filaments and "Left" in hands_by_side and "Right" in hands_by_side:
@@ -282,6 +400,11 @@ def main():
                         pop    = None
                         bubble = new_bubble(w, h)
 
+            # --- Démo C ---
+            if show_demo_c and bubble_c is not None:
+                update_bubble_c(bubble_c, w, h)
+                draw_bubble_c(frame, bubble_c)
+
             # --- UI ---
             cv2.rectangle(frame, (0, h - 42), (w, h), (30, 30, 30), -1)
             cv2.putText(frame, status_text, (10, h - 12),
@@ -297,8 +420,13 @@ def main():
             cv2.putText(frame, bub_label, (10, 58),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, bub_color, 2)
 
-            cv2.putText(frame, "a : filaments  |  b : bulles  |  q : quitter", (w - 460, 28),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, (180, 180, 180), 1)
+            phy_label = "Physique : ON" if show_demo_c else "Physique : OFF"
+            phy_color = (50, 200, 255) if show_demo_c else (120, 120, 120)
+            cv2.putText(frame, phy_label, (10, 88),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, phy_color, 2)
+
+            cv2.putText(frame, "a:filaments  b:bulles  c:physique  q:quitter", (w - 490, 28),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.52, (180, 180, 180), 1)
 
             cv2.imshow("Detection de mouvement de la main", frame)
 
@@ -315,6 +443,13 @@ def main():
                 else:
                     bubble = None
                     pop    = None
+            elif key == ord("c"):
+                show_demo_c = not show_demo_c
+                if show_demo_c:
+                    bubble_c = new_bubble_c(w, h)
+                else:
+                    bubble_c = None
+                    prev_index_c.clear()
 
     cap.release()
     cv2.destroyAllWindows()
