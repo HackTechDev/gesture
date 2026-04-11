@@ -9,6 +9,13 @@ def _extended(lm, tip, pip):
     return lm[tip].y < lm[pip].y
 
 
+def _tips_distance(lm, tip_a, tip_b):
+    """Distance euclidienne normalisée entre deux bouts de doigts."""
+    dx = lm[tip_a].x - lm[tip_b].x
+    dy = lm[tip_a].y - lm[tip_b].y
+    return (dx * dx + dy * dy) ** 0.5
+
+
 def detect_gesture(lm):
     """Retourne (nom, couleur_BGR) du geste détecté, ou (None, None)."""
     index_ext  = _extended(lm,  8,  6)
@@ -20,7 +27,8 @@ def detect_gesture(lm):
 
     if thumb_up and not index_ext and not middle_ext and not ring_ext and not pinky_ext:
         return "Pouce leve !", (0, 200, 255)
-    if thumb_up and index_ext and middle_ext and not ring_ext and not pinky_ext:
+    fingers_together = _tips_distance(lm, 8, 12) < 0.07
+    if thumb_up and index_ext and middle_ext and not ring_ext and not pinky_ext and fingers_together:
         return "Dr Strange !", (0, 140, 255)
     if index_ext and middle_ext and not ring_ext and not pinky_ext:
         return "Victoire !", (100, 255, 100)
