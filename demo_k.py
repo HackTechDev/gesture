@@ -1,10 +1,12 @@
 """Démo K — Galaxie spirale 3D tournante entre les mains.
 
 Contrôle :
-  Position   → point milieu entre les deux paumes
-  Inclinaison → angle de la ligne main-gauche → main-droite
-  Taille     → distance entre les mains
-  Rotation   → spin automatique (yaw) ; pitch piloté par l'inclinaison des mains
+  Position        → point milieu entre les deux paumes
+  Vue de côté     → mains horizontales (même hauteur) = galaxy vue en tranche
+  Vue de face     → mains verticales = galaxy vue de dessus (bras spiraux visibles)
+  Taille          → distance entre les mains
+  Rotation (yaw)  → spin automatique
+  Étoile filante  → apparaît périodiquement, toutes les 8–16 s
 """
 import math
 import time
@@ -137,6 +139,9 @@ def new_galaxy():
         "vpitch": 0.0,
         "scale":  160.0,
         "alpha":  0.0,
+        # Étoile filante
+        "shooting_star": None,
+        "next_shoot":    time.time() + random.uniform(5.0, 12.0),
     }
 
 
@@ -158,8 +163,9 @@ def update(galaxy, hands_by_side, w, h):
         galaxy["vx"] = galaxy["vx"] * _POS_D + (tcx - galaxy["cx"]) * _POS_K
         galaxy["vy"] = galaxy["vy"] * _POS_D + (tcy - galaxy["cy"]) * _POS_K
 
-        # Inclinaison = angle de la ligne gauche→droite par rapport à l'horizontale
-        target_pitch = math.atan2(ly - ry, lx - rx) * 0.90
+        # Vue de côté si mains horizontales, face si mains verticales
+        hand_angle   = math.atan2(ly - ry, lx - rx)
+        target_pitch = math.pi * 0.5 - abs(hand_angle)   # [π/2 .. 0]
         galaxy["vpitch"] = (galaxy["vpitch"] * _PITCH_D
                             + (target_pitch - galaxy["pitch"]) * _PITCH_K)
 
@@ -175,6 +181,20 @@ def update(galaxy, hands_by_side, w, h):
     galaxy["cy"]    += galaxy["vy"]
     galaxy["pitch"] += galaxy["vpitch"]
 
+    # ── Étoile filante ─────────────────────────────────────────────────────
+    t_now = time.time()
+    if galaxy["shooting_star"] is None and t_now >= galaxy["next_shoot"]:
+        galaxy["shooting_star"] = _spawn_shooting_star(w, h)
+        galaxy["next_shoot"]    = t_now + random.uniform(8.0, 16.0)
+    if galaxy["shooting_star"] is not None:
+        s = galaxy["shooting_star"]
+        s["x"] += s["vx"]
+        s["y"] += s["vy"]
+        age = t_now - s["start_t"]
+        if age > s["duration"] or not (-200 < s["x"] < w + 200
+                                       and -200 < s["y"] < h + 200):
+            galaxy["shooting_star"] = None
+
 
 def render(frame, galaxy, w, h):
     """Dessine la galaxie 3D sur la frame."""
@@ -189,6 +209,10 @@ def render(frame, galaxy, w, h):
 
     rot_s = (R @ galaxy["star_pos"].T).T   # (N_STARS, 3)
     rot_n = (R @ galaxy["neb_pos"].T).T    # (N_NEBULAE, 3)
+
+    # ── 0. Étoile filante ────────────────────────────────────────────────
+    if galaxy["shooting_star"] is not None:
+        _draw_shooting_star(frame, galaxy["shooting_star"], alpha)
 
     # ── 1. Nébuleuses (calque gaussien additif) ───────────────────────────
     neb_layer = np.zeros_like(frame, dtype=np.uint8)
@@ -265,6 +289,62 @@ def render(frame, galaxy, w, h):
 
 def _palm(lm, w, h):
     return int(lm[9].x * w), int(lm[9].y * h)
+
+
+def _spawn_shooting_star(w, h):
+    """Génère une étoile filante depuis un bord de l'écran."""
+    # Direction légèrement descendante, sens aléatoire gauche↔droite
+    angle = random.uniform(0.08, 0.38) * random.choice((-1, 1))
+    speed = random.uniform(10, 22)
+    vx    = speed * math.cos(angle) * random.choice((-1, 1))
+    vy    = abs(speed * math.sin(angle))         # toujours vers le bas
+    sx    = -30 if vx > 0 else w + 30
+    sy    = random.randint(int(h * 0.02), int(h * 0.45))
+    color = random.choice([
+        (255, 255, 255),   # blanc pur
+        (255, 245, 210),   # blanc-jaunâtre
+        (220, 235, 255),   # blanc-bleuté
+    ])
+    trail = random.randint(28, 50)
+    return {
+        "x": float(sx), "y": float(sy),
+        "vx": vx, "vy": vy,
+        "start_t":  time.time(),
+        "duration": random.uniform(1.8, 3.5),
+        "color":    color,
+        "trail":    trail,
+    }
+
+
+def _draw_shooting_star(frame, s, alpha):
+    """Dessine la traînée lumineuse de l'étoile filante."""
+    age   = time.time() - s["start_t"]
+    fade  = max(0.0, 1.0 - age / s["duration"])
+    if fade <= 0:
+        return
+
+    hx, hy = int(s["x"]), int(s["y"])
+    tx = int(s["x"] - s["vx"] * s["trail"])
+    ty = int(s["y"] - s["vy"] * s["trail"])
+
+    # Traînée en 10 segments avec luminosité croissante vers la tête
+    glow = np.zeros_like(frame, dtype=np.uint8)
+    n_seg = 10
+    for i in range(n_seg):
+        t0 = i / n_seg;  t1 = (i + 1) / n_seg
+        x0 = int(tx + (hx - tx) * t0);  y0 = int(ty + (hy - ty) * t0)
+        x1 = int(tx + (hx - tx) * t1);  y1 = int(ty + (hy - ty) * t1)
+        bright = t1 * fade * alpha
+        c      = tuple(int(ch * bright) for ch in s["color"])
+        cv2.line(glow, (x0, y0), (x1, y1), c, max(1, int(t1 * 3)))
+
+    # Halo gaussien sur la traînée
+    frame[:] = cv2.addWeighted(frame, 1.0,
+                                cv2.GaussianBlur(glow, (9, 9), 0), 1.0, 0)
+    # Point lumineux net à la tête
+    c_head = tuple(int(ch * fade * alpha) for ch in s["color"])
+    cv2.circle(frame, (hx, hy), 3, c_head, -1)
+    cv2.circle(frame, (hx, hy), 1, (255, 255, 255), -1)
 
 
 def _rot(pitch, yaw):

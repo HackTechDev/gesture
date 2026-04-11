@@ -143,8 +143,9 @@ Fonctions utilitaires dans `hand_motion.py` :
 - Nécessite les **deux mains** simultanément : la galaxie apparaît au point milieu entre les deux paumes.
 - **Position** : suit le centre des deux paumes avec un ressort amorti.
 - **Taille** : proportionnelle à la distance entre les deux mains (`dist × 0.92`, clampée entre 80 et 340 px de scale).
-- **Inclinaison (pitch)** : déterminée par l'angle de la ligne main-gauche → main-droite ; permet de voir la galaxie de face ou de côté.
+- **Vue de côté / face** : mains à la même hauteur (horizontales) → galaxie vue en **tranche** (disque fin) ; mains décalées verticalement → vue de **face** (bras spiraux visibles). Transition fluide par ressort amorti.
 - **Rotation (yaw)** : spin automatique continu à 0.45 rad/s — la galaxie tourne sur elle-même sans intervention.
+- **Étoile filante** : apparaît automatiquement toutes les 8–16 s, traverse la scène avec une traînée lumineuse dégradée et un halo gaussien.
 - Structure : 1500 étoiles (55 % bras spiraux, 20 % disque diffus, 20 % bulbe central, 5 % géantes rouges) + 20 nébuleuses colorées le long des bras.
 - Rendu 3D par tri de profondeur (`np.argsort`) et facteur de luminosité selon la coordonnée Z.
 - Performance : les étoiles de taille 1 (≈ 1 200) sont dessinées en batch NumPy direct sur le buffer de frame ; les étoiles de taille 2+ utilisent `cv2.circle`.

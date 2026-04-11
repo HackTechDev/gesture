@@ -39,3 +39,20 @@ The typical pipeline:
 5. Trigger action (audio via `sounddevice`, visual overlay via OpenCV)
 
 OpenCV's `imshow` / `waitKey` loop drives the real-time display; `waitKey(1)` is the standard polling interval for webcam loops.
+
+## Workflow Git
+
+Après chaque modification significative, fais un commit git avec :
+- Un titre court et descriptif (format : `type(scope): description`)
+  - Types valides : `feat`, `fix`, `refactor`, `docs`, `chore`, `style`
+- Un corps de message détaillant les changements effectués
+
+Exemple :
+```
+feat(auth): ajouter la validation du token JWT
+
+- Ajout de la vérification de l'expiration du token
+- Gestion des erreurs 401 avec message explicite
+- Mise à jour des tests unitaires correspondants
+```
+
