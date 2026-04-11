@@ -50,19 +50,28 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 
 ---
 
-## Architecture du script
+## Architecture du projet
 
-| Fonction(s) | Rôle |
+Le projet est découpé en plusieurs fichiers, un par démo :
+
+| Fichier | Rôle |
+|---|---|
+| `hand_motion.py` | Orchestrateur principal : capture webcam, détection MediaPipe, boucle de rendu, touches clavier |
+| `demo_a.py` | Démo A — filaments néon entre les extrémités des deux mains |
+| `demo_b.py` | Démo B — bulles brillantes à éclater par pincement (jeu avec score et minuterie) |
+| `demo_c.py` | Démo C — bulle physique poussée par l'index, avec rebonds |
+| `demo_d.py` | Démo D — dessin dans l'air avec l'index, effacement main ouverte, palette de couleurs |
+| `demo_f.py` | Démo F — reconnaissance de gestes (Pouce levé, Victoire, Poing, Main ouverte, Index pointé, Metal) |
+
+Fonctions utilitaires dans `hand_motion.py` :
+
+| Fonction | Rôle |
 |---|---|
 | `download_model()` | Téléchargement automatique du modèle `.task` au premier lancement |
 | `enhance_frame()` | Prétraitement CLAHE pour compenser l'éclairage inégal |
 | `draw_hand()` | Tracé des 21 landmarks et connexions de la main |
-| `draw_filaments()` | Démo A — filaments néon entre les extrémités des deux mains |
-| `new_bubble()` / `draw_bubble()` / `draw_pop()` | Démo B — bulle brillante à éclater par pincement |
-| `new_bubble_c()` / `push_bubble_c()` / `update_bubble_c()` / `draw_bubble_c()` | Démo C — bulle avec physique poussée par l'index |
-| `is_index_only()` / `is_open_hand()` / `draw_palette()` | Démo D — détection des gestes de dessin et effacement |
-| `detect_gesture()` / `draw_gesture_label()` | Démo F — classification de gestes et affichage |
-| `main()` | Boucle principale : capture webcam, détection MediaPipe, rendu, touches |
+| `palm_center()` | Calcule le centre de la paume (landmark 9) |
+| `main()` | Boucle principale : capture, détection, rendu, touches |
 
 ---
 
@@ -95,12 +104,12 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 **Démo D — Dessin dans l'air (touche `d`)**
 - **Index seul étendu** (majeur/annulaire/auriculaire repliés) → mode dessin : une ligne est tracée entre la position courante et la précédente de l'index (landmark 8).
 - **Main ouverte** (4 doigts étendus) → effacement complet du canvas avec un flash blanc animé.
-- Une **palette de 6 couleurs** est affichée en haut à droite ; pointer l'index dessus change la couleur active (encadrée en blanc).
+- Une **palette de 6 couleurs** est affichée en haut à droite ; pointer l'**auriculaire** (landmark 20) dessus change la couleur active (encadrée en blanc).
 - Le dessin persiste sur un calque fusionné additivement sur la frame (zones noires = transparentes).
 - Paramètres : `DRAW_COLORS` (liste de couleurs BGR), `DRAW_THICKNESS` (épaisseur du trait).
 
 **Démo F — Reconnaissance de gestes (touche `f`)**
-- 5 gestes reconnus : **Pouce levé**, **Victoire**, **Poing**, **Main ouverte**, **Index pointé**.
+- 6 gestes reconnus : **Pouce levé**, **Victoire**, **Poing**, **Main ouverte**, **Index pointé**, **Metal** (index + auriculaire étendus).
 - Détection basée sur la position Y des tips vs PIP joints (tip au-dessus du PIP = doigt étendu).
 - Lissage sur `GESTURE_SMOOTH` frames (défaut : 10) pour éviter le scintillement — un geste est affiché dès qu'il est majoritaire sur la fenêtre.
 - Le nom s'affiche dans un bandeau semi-transparent sous la paume de chaque main détectée.

@@ -26,6 +26,6 @@
 
 ## Architecture
 
-- [ ] Séparer chaque démo dans son propre fichier (`demo_a.py`, `demo_b.py`…) et les importer dans `hand_motion.py`
+- [x] Séparer chaque démo dans son propre fichier (`demo_a.py`, `demo_b.py`…) et les importer dans `hand_motion.py`
 - [ ] Fichier `config.py` centralisé pour tous les paramètres ajustables
 - [ ] Affichage du FPS en temps réel pour mesurer l'impact des démos
