@@ -27,6 +27,8 @@ python3 -m venv .venv
 .venv/bin/pip install mediapipe opencv-python numpy
 ```
 
+> `numpy` est utilisé pour les calques de glow (filaments) et les étincelles de la démo bulles.
+
 ## 4. Créer le script `hand_motion.py`
 
 Le modèle MediaPipe (`hand_landmarker_full.task`) est téléchargé automatiquement au premier lancement.
@@ -259,6 +261,7 @@ Au premier lancement, le modèle est téléchargé automatiquement dans `hand_la
 | Touche | Action |
 |--------|--------|
 | `a` | Activer / désactiver les filaments lumineux |
+| `b` | Activer / désactiver la démo bulles (pincer avec pouce + index pour éclater) |
 | `q` | Quitter l'application |
 
 ## Notes
@@ -270,3 +273,6 @@ Au premier lancement, le modèle est téléchargé automatiquement dans `hand_la
 - Le prétraitement CLAHE améliore la détection en cas d'éclairage inégal.
 - Les filaments nécessitent que les **deux mains soient simultanément visibles** dans le champ de la webcam.
 - L'effet lumineux est obtenu par fusion additive d'un calque flou (GaussianBlur) sur la frame principale.
+- La démo bulles est indépendante des filaments — les deux modes peuvent être actifs simultanément.
+- Pour éclater une bulle : rapprocher le **pouce** (landmark 4) et l'**index** (landmark 8) à moins de 50 px, le point de pincement doit se trouver dans la bulle. Une nouvelle bulle apparaît automatiquement après l'animation d'éclatement.
+- Paramètres ajustables : `PINCH_THRESHOLD` (sensibilité du pincement), `BUBBLE_RADIUS` (taille), `POP_DURATION` (durée de l'animation en frames).

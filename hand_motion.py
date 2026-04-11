@@ -1,5 +1,6 @@
 import urllib.request
 import os
+import random
 import cv2
 import numpy as np
 import mediapipe as mp
@@ -18,7 +19,10 @@ MODEL_URL = (
     "hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task"
 )
 
-MOVEMENT_THRESHOLD = 15  # pixels
+MOVEMENT_THRESHOLD = 15   # pixels
+PINCH_THRESHOLD    = 50   # pixels — distance pouce/index pour considérer un pincement
+BUBBLE_RADIUS      = 45   # pixels
+POP_DURATION       = 18   # frames d'animation d'éclatement
 
 HAND_CONNECTIONS = [
     (0, 1), (1, 2), (2, 3), (3, 4),
@@ -29,20 +33,32 @@ HAND_CONNECTIONS = [
     (0, 17),
 ]
 
-# Extrémités des doigts : pouce, index, majeur, annulaire, auriculaire
 FINGERTIPS = [4, 8, 12, 16, 20]
 
-# Couleur (BGR) de chaque filament
 FILAMENT_COLORS = [
-    (255, 180,   0),  # cyan    — pouce
-    (0,   255, 180),  # vert    — index
-    (180,   0, 255),  # violet  — majeur
-    (0,   200, 255),  # jaune   — annulaire
-    (255,  50, 150),  # rose    — auriculaire
+    (255, 180,   0),
+    (0,   255, 180),
+    (180,   0, 255),
+    (0,   200, 255),
+    (255,  50, 150),
+]
+
+# Couleurs possibles pour les bulles (BGR)
+BUBBLE_PALETTE = [
+    (255,  80, 120),  # rose
+    (80,  200, 255),  # jaune
+    (255, 180,  50),  # cyan
+    (120, 255, 100),  # vert
+    (200,  80, 255),  # violet
+    (80,  160, 255),  # orange
 ]
 
 clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
 
+
+# ---------------------------------------------------------------------------
+# Utilitaires
+# ---------------------------------------------------------------------------
 
 def download_model():
     if not os.path.exists(MODEL_PATH):
@@ -52,7 +68,6 @@ def download_model():
 
 
 def enhance_frame(frame):
-    """Égalisation CLAHE sur le canal L pour compenser l'éclairage inégal."""
     lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
     lab[:, :, 0] = clahe.apply(lab[:, :, 0])
     return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
@@ -61,47 +76,100 @@ def enhance_frame(frame):
 def draw_hand(frame, hand_landmarks, w, h):
     for start, end in HAND_CONNECTIONS:
         x1, y1 = int(hand_landmarks[start].x * w), int(hand_landmarks[start].y * h)
-        x2, y2 = int(hand_landmarks[end].x * w), int(hand_landmarks[end].y * h)
+        x2, y2 = int(hand_landmarks[end].x * w),   int(hand_landmarks[end].y * h)
         cv2.line(frame, (x1, y1), (x2, y2), (0, 200, 0), 2)
     for lm in hand_landmarks:
         cv2.circle(frame, (int(lm.x * w), int(lm.y * h)), 4, (255, 255, 255), -1)
 
 
 def palm_center(hand_landmarks, w, h):
-    lm = hand_landmarks[9]  # base du majeur
+    lm = hand_landmarks[9]
     return int(lm.x * w), int(lm.y * h)
 
 
 def draw_filaments(frame, left_lm, right_lm, w, h):
-    """Dessine des filaments lumineux entre les extrémités des deux mains."""
     glow = np.zeros_like(frame, dtype=np.uint8)
-
     for tip_idx, color in zip(FINGERTIPS, FILAMENT_COLORS):
         lx, ly = int(left_lm[tip_idx].x * w),  int(left_lm[tip_idx].y * h)
         rx, ry = int(right_lm[tip_idx].x * w), int(right_lm[tip_idx].y * h)
-
-        # Halo extérieur large et diffus
         cv2.line(glow, (lx, ly), (rx, ry), color, 9)
-        # Halo intermédiaire plus lumineux
         cv2.line(glow, (lx, ly), (rx, ry), color, 4)
-
-    # Flou gaussien → effet néon/glow
     glow = cv2.GaussianBlur(glow, (21, 21), 0)
-
-    # Fusion additive avec la frame
     frame[:] = cv2.add(frame, glow)
-
-    # Noyau blanc fin par-dessus pour l'éclat central
     for tip_idx, color in zip(FINGERTIPS, FILAMENT_COLORS):
         lx, ly = int(left_lm[tip_idx].x * w),  int(left_lm[tip_idx].y * h)
         rx, ry = int(right_lm[tip_idx].x * w), int(right_lm[tip_idx].y * h)
         cv2.line(frame, (lx, ly), (rx, ry), (255, 255, 255), 1)
-
-        # Petit halo aux extrémités
         for px, py in [(lx, ly), (rx, ry)]:
             cv2.circle(frame, (px, py), 6, color, -1)
             cv2.circle(frame, (px, py), 3, (255, 255, 255), -1)
 
+
+# ---------------------------------------------------------------------------
+# Bulle
+# ---------------------------------------------------------------------------
+
+def new_bubble(w, h):
+    margin = BUBBLE_RADIUS + 20
+    return {
+        "cx":    random.randint(margin, w - margin),
+        "cy":    random.randint(margin + 60, h - margin - 60),
+        "r":     BUBBLE_RADIUS,
+        "color": random.choice(BUBBLE_PALETTE),
+    }
+
+
+def draw_bubble(frame, bubble):
+    cx, cy, r, color = bubble["cx"], bubble["cy"], bubble["r"], bubble["color"]
+
+    # Corps translucide
+    overlay = frame.copy()
+    cv2.circle(overlay, (cx, cy), r, color, -1)
+    cv2.addWeighted(overlay, 0.35, frame, 0.65, 0, frame)
+
+    # Contour lumineux
+    cv2.circle(frame, (cx, cy), r, color, 2)
+
+    # Reflet principal (ellipse blanche, haut-gauche)
+    hl_x, hl_y = cx - r // 3, cy - r // 3
+    axes = (max(r // 4, 4), max(r // 6, 3))
+    cv2.ellipse(frame, (hl_x, hl_y), axes, -35, 0, 360, (255, 255, 255), -1)
+
+    # Petit point brillant secondaire
+    cv2.circle(frame, (cx + r // 4, cy + r // 4), max(r // 10, 2), (255, 255, 255), -1)
+
+
+def draw_pop(frame, pop):
+    """Animation d'éclatement : anneaux expansifs qui s'estompent."""
+    t = 1.0 - pop["frames_left"] / POP_DURATION   # 0 → 1
+    cx, cy = pop["cx"], pop["cy"]
+    color  = pop["color"]
+
+    for i in range(5):
+        offset = i / 5
+        progress = min(t + offset * 0.3, 1.0)
+        ring_r   = int(BUBBLE_RADIUS * (1 + progress * 3))
+        alpha    = max(0.0, 1.0 - progress * 1.5)
+        thickness = max(1, int(3 * (1 - progress)))
+
+        ring_layer = frame.copy()
+        cv2.circle(ring_layer, (cx, cy), ring_r, color, thickness)
+        cv2.addWeighted(ring_layer, alpha * 0.7, frame, 1 - alpha * 0.7, 0, frame)
+
+    # Étincelles
+    rng = np.random.default_rng(seed=int(t * 100))
+    for _ in range(8):
+        angle = rng.uniform(0, 2 * np.pi)
+        dist  = int(BUBBLE_RADIUS * (1 + t * 2.5) * rng.uniform(0.6, 1.0))
+        sx    = cx + int(np.cos(angle) * dist)
+        sy    = cy + int(np.sin(angle) * dist)
+        spark_r = max(1, int(4 * (1 - t)))
+        cv2.circle(frame, (sx, sy), spark_r, (255, 255, 255), -1)
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
 def main():
     download_model()
@@ -124,8 +192,15 @@ def main():
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     cap.set(cv2.CAP_PROP_FPS, 30)
 
-    prev_positions = {}
-    show_filaments = False
+    # Lire la résolution réelle après configuration
+    w_cam = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h_cam = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    prev_positions  = {}
+    show_filaments  = False
+    show_bubble     = False
+    bubble          = None
+    pop             = None   # animation en cours : dict ou None
 
     with HandLandmarker.create_from_options(options) as landmarker:
         while True:
@@ -144,12 +219,11 @@ def main():
             )
             results = landmarker.detect_for_video(mp_image, timestamp_ms)
 
-            status_text = "Aucune main detectee"
+            status_text  = "Aucune main detectee"
             status_color = (200, 200, 200)
             current_positions = {}
+            hands_by_side     = {}
 
-            # Identifier main gauche et main droite
-            hands_by_side = {}  # "Left" | "Right" -> landmarks
             for idx, hand_landmarks in enumerate(results.hand_landmarks or []):
                 draw_hand(frame, hand_landmarks, w, h)
 
@@ -161,37 +235,69 @@ def main():
                     px, py = prev_positions[idx]
                     dist = ((cx - px) ** 2 + (cy - py) ** 2) ** 0.5
                     if dist > MOVEMENT_THRESHOLD:
-                        status_text = f"Mouvement detecte !  ({dist:.0f} px)"
+                        status_text  = f"Mouvement detecte !  ({dist:.0f} px)"
                         status_color = (0, 80, 255)
                         cv2.arrowedLine(frame, (px, py), (cx, cy), (0, 0, 255), 2, tipLength=0.4)
                     else:
-                        status_text = "Main immobile"
+                        status_text  = "Main immobile"
                         status_color = (0, 220, 0)
                 else:
                     status_text = "Main detectee"
 
-                # Récupérer le côté détecté par MediaPipe
                 if results.handedness and idx < len(results.handedness):
-                    side = results.handedness[idx][0].display_name  # "Left" ou "Right"
+                    side = results.handedness[idx][0].display_name
                     hands_by_side[side] = hand_landmarks
+
+                # --- Détection du pincement pouce/index ---
+                if show_bubble and bubble is not None:
+                    tx = int(hand_landmarks[4].x * w)
+                    ty = int(hand_landmarks[4].y * h)
+                    ix = int(hand_landmarks[8].x * w)
+                    iy = int(hand_landmarks[8].y * h)
+
+                    pinch_dist = ((tx - ix) ** 2 + (ty - iy) ** 2) ** 0.5
+                    mid_x, mid_y = (tx + ix) // 2, (ty + iy) // 2
+                    mid_to_bubble = ((mid_x - bubble["cx"]) ** 2 + (mid_y - bubble["cy"]) ** 2) ** 0.5
+
+                    if pinch_dist < PINCH_THRESHOLD and mid_to_bubble < bubble["r"] + 20:
+                        # Éclatement !
+                        pop    = {"cx": bubble["cx"], "cy": bubble["cy"],
+                                  "color": bubble["color"], "frames_left": POP_DURATION}
+                        bubble = None
 
             prev_positions = current_positions
 
-            # Filaments si les deux mains sont présentes et mode actif
+            # --- Filaments ---
             if show_filaments and "Left" in hands_by_side and "Right" in hands_by_side:
                 draw_filaments(frame, hands_by_side["Left"], hands_by_side["Right"], w, h)
 
-            # Bandeau d'état
+            # --- Bulle ---
+            if show_bubble:
+                if bubble is not None:
+                    draw_bubble(frame, bubble)
+                if pop is not None:
+                    draw_pop(frame, pop)
+                    pop["frames_left"] -= 1
+                    if pop["frames_left"] <= 0:
+                        pop    = None
+                        bubble = new_bubble(w, h)
+
+            # --- UI ---
             cv2.rectangle(frame, (0, h - 42), (w, h), (30, 30, 30), -1)
             cv2.putText(frame, status_text, (10, h - 12),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.65, status_color, 2)
 
-            # Indicateur filaments
             fil_label = "Filaments : ON" if show_filaments else "Filaments : OFF"
             fil_color = (0, 220, 255) if show_filaments else (120, 120, 120)
             cv2.putText(frame, fil_label, (10, 28),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, fil_color, 2)
-            cv2.putText(frame, "a : filaments  |  q : quitter", (w - 310, 28),
+
+            bub_label = "Bulles : ON" if show_bubble else "Bulles : OFF"
+            bub_color = (100, 255, 180) if show_bubble else (120, 120, 120)
+            cv2.putText(frame, bub_label, (10, 58),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, bub_color, 2)
+
+            cv2.putText(frame, "a : filaments  |  b : bulles  |  q : quitter", (w - 460, 28),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.55, (180, 180, 180), 1)
 
             cv2.imshow("Detection de mouvement de la main", frame)
@@ -201,6 +307,14 @@ def main():
                 break
             elif key == ord("a"):
                 show_filaments = not show_filaments
+            elif key == ord("b"):
+                show_bubble = not show_bubble
+                if show_bubble:
+                    bubble = new_bubble(w, h)
+                    pop    = None
+                else:
+                    bubble = None
+                    pop    = None
 
     cap.release()
     cv2.destroyAllWindows()
