@@ -197,14 +197,14 @@ def render(frame, galaxy, w, h):
         ny = int(cy + rot_n[i, 1] * scale)
         if not (0 <= nx < w and 0 <= ny < h):
             continue
-        nr  = max(5, int(galaxy["neb_radii"][i] * scale))
-        df  = max(0.15, min(1.0, 0.55 + rot_n[i, 2] / R_UNIT * 0.50))
+        nr  = max(8, int(galaxy["neb_radii"][i] * scale * 1.3))
+        df  = max(0.40, min(1.0, 0.75 + rot_n[i, 2] / R_UNIT * 0.40))
         nc  = tuple(int(c * df) for c in galaxy["neb_colors"][i])
         cv2.circle(neb_layer, (nx, ny), nr, nc, -1)
     frame[:] = cv2.addWeighted(
         frame, 1.0,
         cv2.GaussianBlur(neb_layer, (61, 61), 0),
-        alpha * 0.50, 0,
+        alpha * 0.90, 0,
     )
 
     # ── 2. Halo du noyau galactique ───────────────────────────────────────
