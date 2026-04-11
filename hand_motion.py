@@ -526,10 +526,10 @@ def main():
 
                 # --- Démo F : reconnaissance de gestes ---
                 if show_demo_f:
-                    name, color = detect_gesture(hand_landmarks)
+                    name, gcolor = detect_gesture(hand_landmarks)
                     if idx not in gesture_history:
                         gesture_history[idx] = deque(maxlen=GESTURE_SMOOTH)
-                    gesture_history[idx].append(name)
+                    gesture_history[idx].append((name, gcolor))
 
                 # --- Démo C : poussée de la bulle par l'index ---
                 if show_demo_c and bubble_c is not None:
@@ -625,19 +625,24 @@ def main():
 
             # --- Démo F : affichage des gestes lissés ---
             if show_demo_f:
-                for idx, history in gesture_history.items():
-                    counts      = Counter(g for g in history if g is not None)
-                    best, freq  = counts.most_common(1)[0] if counts else (None, 0)
-                    if best and freq >= GESTURE_SMOOTH // 2:
-                        _, gcolor = detect_gesture(
-                            (results.hand_landmarks or [])[idx]
-                            if idx < len(results.hand_landmarks or []) else []
+                active_ids = set(range(len(results.hand_landmarks or [])))
+                for idx in list(gesture_history.keys()):
+                    if idx not in active_ids:
+                        del gesture_history[idx]
+                        continue
+                    history = gesture_history[idx]
+                    counts  = Counter(name for name, _ in history if name is not None)
+                    if not counts:
+                        continue
+                    best, freq = counts.most_common(1)[0]
+                    if freq >= GESTURE_SMOOTH // 2:
+                        # Récupérer la couleur associée au geste majoritaire
+                        gcolor = next(
+                            (c for n, c in history if n == best and c is not None),
+                            (200, 200, 200),
                         )
                         pcx, pcy = current_positions.get(idx, (w // 2, h // 2))
-                        draw_gesture_label(frame, best, gcolor or (200, 200, 200),
-                                           pcx, pcy, w, h)
-                if not (results.hand_landmarks):
-                    gesture_history.clear()
+                        draw_gesture_label(frame, best, gcolor, pcx, pcy, w, h)
 
             # --- UI ---
             cv2.rectangle(frame, (0, h - 42), (w, h), (30, 30, 30), -1)
