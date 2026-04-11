@@ -1,8 +1,16 @@
 """Démo F — Reconnaissance de gestes (pouce levé, victoire, poing, metal…)."""
 from collections import deque, Counter
+import math
+import time
 import cv2
+import numpy as np
 
 GESTURE_SMOOTH = 10  # frames pour confirmer un geste (anti-scintillement)
+
+# Cercle magique Dr Strange
+_CIRCLE_R    = 90   # rayon principal en pixels
+_RUNE_COUNT  = 16   # nombre de marques runiques sur le cercle extérieur
+_SPARK_COUNT = 8    # étincelles orbitant autour du cercle
 
 
 def _extended(lm, tip, pip):
@@ -28,7 +36,7 @@ def detect_gesture(lm):
     if thumb_up and not index_ext and not middle_ext and not ring_ext and not pinky_ext:
         return "Pouce leve !", (0, 200, 255)
     # Pouce écarté : tip (4) loin du MCP de l'index (5), quelle que soit l'orientation
-    thumb_spread = _tips_distance(lm, 4, 5) > 0.13
+    thumb_spread    = _tips_distance(lm, 4, 5) > 0.13
     fingers_together = _tips_distance(lm, 8, 12) < 0.07
     if thumb_spread and index_ext and middle_ext and not ring_ext and not pinky_ext and fingers_together:
         return "Dr Strange !", (0, 140, 255)
@@ -43,6 +51,74 @@ def detect_gesture(lm):
     if index_ext and not middle_ext and not ring_ext and not pinky_ext:
         return "Index pointe", (200, 100, 255)
     return None, None
+
+
+def _draw_dr_strange_circle(frame, cx, cy):
+    """Cercle magique avec pentagramme tournant et étincelles, style Dr Strange."""
+    t       = time.time()
+    angle   = math.degrees(t * 1.8) % 360   # pentagramme : ~1 tour / 3,5 s
+    angle2  = -math.degrees(t * 1.1) % 360  # runes : sens inverse, plus lent
+
+    orange      = (  0, 120, 255)  # orange vif (BGR)
+    orange_dark = (  0,  55, 180)  # orange sombre pour le halo
+    white_warm  = (180, 200, 255)  # blanc chaud pour les tracés nets
+
+    r = _CIRCLE_R
+    glow = np.zeros_like(frame, dtype=np.uint8)
+
+    # ── Cercles concentriques ──────────────────────────────────────────────
+    cv2.circle(glow, (cx, cy), r + 12, orange_dark, 5)
+    cv2.circle(glow, (cx, cy), r,      orange_dark, 3)
+    cv2.circle(glow, (cx, cy), r - 18, orange_dark, 2)
+
+    # ── Marques runiques sur le cercle extérieur (tournent en sens inverse) ─
+    for i in range(_RUNE_COUNT):
+        a    = math.radians(angle2 + i * (360 / _RUNE_COUNT))
+        long = 12 if i % 4 == 0 else 6          # grandes et petites marques
+        r1   = r + 6
+        r2   = r + 6 + long
+        x1   = cx + int(r1 * math.cos(a))
+        y1   = cy + int(r1 * math.sin(a))
+        x2   = cx + int(r2 * math.cos(a))
+        y2   = cy + int(r2 * math.sin(a))
+        cv2.line(glow, (x1, y1), (x2, y2), orange_dark, 3)
+
+    # ── Pentagramme (5 pointes, connexion en étoile 0→2→4→1→3→0) ─────────
+    pts = []
+    for i in range(5):
+        a  = math.radians(angle + i * 72 - 90)
+        px = cx + int((r - 16) * math.cos(a))
+        py = cy + int((r - 16) * math.sin(a))
+        pts.append((px, py))
+    star = [0, 2, 4, 1, 3, 0]
+    for k in range(len(star) - 1):
+        cv2.line(glow, pts[star[k]], pts[star[k + 1]], orange, 4)
+
+    # ── Halo par flou additif ──────────────────────────────────────────────
+    frame[:] = cv2.add(frame, cv2.GaussianBlur(glow, (33, 33), 0))
+
+    # ── Tracés nets par-dessus ─────────────────────────────────────────────
+    cv2.circle(frame, (cx, cy), r + 12, orange, 1)
+    cv2.circle(frame, (cx, cy), r,      orange, 1)
+    cv2.circle(frame, (cx, cy), r - 18, orange, 1)
+    for i in range(_RUNE_COUNT):
+        a    = math.radians(angle2 + i * (360 / _RUNE_COUNT))
+        long = 12 if i % 4 == 0 else 6
+        r1, r2 = r + 6, r + 6 + long
+        cv2.line(frame,
+                 (cx + int(r1 * math.cos(a)), cy + int(r1 * math.sin(a))),
+                 (cx + int(r2 * math.cos(a)), cy + int(r2 * math.sin(a))),
+                 orange, 1)
+    for k in range(len(star) - 1):
+        cv2.line(frame, pts[star[k]], pts[star[k + 1]], white_warm, 1)
+
+    # ── Étincelles orbitant autour du cercle ──────────────────────────────
+    for i in range(_SPARK_COUNT):
+        a   = math.radians(angle + i * (360 / _SPARK_COUNT))
+        sx  = cx + int((r + 18) * math.cos(a))
+        sy  = cy + int((r + 18) * math.sin(a))
+        cv2.circle(frame, (sx, sy), 3, white_warm, -1)
+        cv2.circle(frame, (sx, sy), 5, orange,     1)
 
 
 def draw_gesture_label(frame, name, color, cx, cy, w, h):
@@ -87,4 +163,6 @@ def render(frame, gesture_history, active_ids, current_positions, w, h):
                 (200, 200, 200),
             )
             pcx, pcy = current_positions.get(idx, (w // 2, h // 2))
+            if best == "Dr Strange !":
+                _draw_dr_strange_circle(frame, pcx, pcy)
             draw_gesture_label(frame, best, gcolor, pcx, pcy, w, h)
