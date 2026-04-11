@@ -1,6 +1,7 @@
 import urllib.request
 import os
 import cv2
+import numpy as np
 import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
@@ -26,6 +27,18 @@ HAND_CONNECTIONS = [
     (9, 13), (13, 14), (14, 15), (15, 16),
     (13, 17), (17, 18), (18, 19), (19, 20),
     (0, 17),
+]
+
+# Extrémités des doigts : pouce, index, majeur, annulaire, auriculaire
+FINGERTIPS = [4, 8, 12, 16, 20]
+
+# Couleur (BGR) de chaque filament
+FILAMENT_COLORS = [
+    (255, 180,   0),  # cyan    — pouce
+    (0,   255, 180),  # vert    — index
+    (180,   0, 255),  # violet  — majeur
+    (0,   200, 255),  # jaune   — annulaire
+    (255,  50, 150),  # rose    — auriculaire
 ]
 
 clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
@@ -59,12 +72,43 @@ def palm_center(hand_landmarks, w, h):
     return int(lm.x * w), int(lm.y * h)
 
 
+def draw_filaments(frame, left_lm, right_lm, w, h):
+    """Dessine des filaments lumineux entre les extrémités des deux mains."""
+    glow = np.zeros_like(frame, dtype=np.uint8)
+
+    for tip_idx, color in zip(FINGERTIPS, FILAMENT_COLORS):
+        lx, ly = int(left_lm[tip_idx].x * w),  int(left_lm[tip_idx].y * h)
+        rx, ry = int(right_lm[tip_idx].x * w), int(right_lm[tip_idx].y * h)
+
+        # Halo extérieur large et diffus
+        cv2.line(glow, (lx, ly), (rx, ry), color, 9)
+        # Halo intermédiaire plus lumineux
+        cv2.line(glow, (lx, ly), (rx, ry), color, 4)
+
+    # Flou gaussien → effet néon/glow
+    glow = cv2.GaussianBlur(glow, (21, 21), 0)
+
+    # Fusion additive avec la frame
+    frame[:] = cv2.add(frame, glow)
+
+    # Noyau blanc fin par-dessus pour l'éclat central
+    for tip_idx, color in zip(FINGERTIPS, FILAMENT_COLORS):
+        lx, ly = int(left_lm[tip_idx].x * w),  int(left_lm[tip_idx].y * h)
+        rx, ry = int(right_lm[tip_idx].x * w), int(right_lm[tip_idx].y * h)
+        cv2.line(frame, (lx, ly), (rx, ry), (255, 255, 255), 1)
+
+        # Petit halo aux extrémités
+        for px, py in [(lx, ly), (rx, ry)]:
+            cv2.circle(frame, (px, py), 6, color, -1)
+            cv2.circle(frame, (px, py), 3, (255, 255, 255), -1)
+
+
 def main():
     download_model()
 
     options = HandLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=MODEL_PATH),
-        running_mode=VisionRunningMode.VIDEO,   # suivi temporel activé
+        running_mode=VisionRunningMode.VIDEO,
         num_hands=2,
         min_hand_detection_confidence=0.5,
         min_hand_presence_confidence=0.5,
@@ -76,12 +120,12 @@ def main():
         print("Erreur : impossible d'ouvrir la webcam.")
         return
 
-    # Qualité de capture
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     cap.set(cv2.CAP_PROP_FPS, 30)
 
     prev_positions = {}
+    show_filaments = False
 
     with HandLandmarker.create_from_options(options) as landmarker:
         while True:
@@ -93,9 +137,7 @@ def main():
             frame = cv2.flip(frame, 1)
             h, w = frame.shape[:2]
 
-            # Prétraitement éclairage
             enhanced = enhance_frame(frame)
-
             mp_image = mp.Image(
                 image_format=mp.ImageFormat.SRGB,
                 data=cv2.cvtColor(enhanced, cv2.COLOR_BGR2RGB),
@@ -106,6 +148,8 @@ def main():
             status_color = (200, 200, 200)
             current_positions = {}
 
+            # Identifier main gauche et main droite
+            hands_by_side = {}  # "Left" | "Right" -> landmarks
             for idx, hand_landmarks in enumerate(results.hand_landmarks or []):
                 draw_hand(frame, hand_landmarks, w, h)
 
@@ -126,18 +170,37 @@ def main():
                 else:
                     status_text = "Main detectee"
 
+                # Récupérer le côté détecté par MediaPipe
+                if results.handedness and idx < len(results.handedness):
+                    side = results.handedness[idx][0].display_name  # "Left" ou "Right"
+                    hands_by_side[side] = hand_landmarks
+
             prev_positions = current_positions
+
+            # Filaments si les deux mains sont présentes et mode actif
+            if show_filaments and "Left" in hands_by_side and "Right" in hands_by_side:
+                draw_filaments(frame, hands_by_side["Left"], hands_by_side["Right"], w, h)
 
             # Bandeau d'état
             cv2.rectangle(frame, (0, h - 42), (w, h), (30, 30, 30), -1)
             cv2.putText(frame, status_text, (10, h - 12),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.65, status_color, 2)
-            cv2.putText(frame, "q : quitter", (w - 105, 22),
+
+            # Indicateur filaments
+            fil_label = "Filaments : ON" if show_filaments else "Filaments : OFF"
+            fil_color = (0, 220, 255) if show_filaments else (120, 120, 120)
+            cv2.putText(frame, fil_label, (10, 28),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, fil_color, 2)
+            cv2.putText(frame, "a : filaments  |  q : quitter", (w - 310, 28),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.55, (180, 180, 180), 1)
 
             cv2.imshow("Detection de mouvement de la main", frame)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
+
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
                 break
+            elif key == ord("a"):
+                show_filaments = not show_filaments
 
     cap.release()
     cv2.destroyAllWindows()
