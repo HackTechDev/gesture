@@ -52,6 +52,7 @@
 - [x] Démo G — Traînées de mouvement (motion trail) sur les 5 bouts de doigts avec halo néon
 - [x] Démo K — Galaxie spirale 3D en couleur tournante entre les mains, déplaçable et inclinable
 - [x] Démo L — Puzzle 3×3 : reconstituer linux.jpg en déplaçant les pièces avec l'index, déposer en faisant un poing
+- [x] Démo Terre — Globe terrestre 3D texturé (2k_earth_daymap.jpg), rotation yaw/pitch par mouvement des deux mains, éclairage Lambertien + atmosphère
 - [ ] Démo M — Piano dans l'air : 5 touches virtuelles (une par doigt), joue une note quand le bout du doigt touche une zone (`sounddevice`)
 - [ ] Démo N — Marionnette : personnage dont les membres suivent les angles des doigts et des mains en temps réel
 - [ ] Démo O — Peinture de particules : chaque fingertip émet un jet de particules colorées soumises à la gravité

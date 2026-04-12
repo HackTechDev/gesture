@@ -50,6 +50,7 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 | `h` | Activer / désactiver la bulle d'eau modelable |
 | `k` | Activer / désactiver la galaxie spirale 3D |
 | `l` | Activer / désactiver le puzzle (linux.jpg) |
+| `t` | Activer / désactiver le globe terrestre 3D |
 | `i` | Afficher / masquer le squelette de la main (traits, points, flèche) |
 | `j` | Basculer en plein écran / fenêtré |
 | `q` | Quitter l'application |
@@ -72,6 +73,7 @@ Le projet est découpé en plusieurs fichiers, un par démo :
 | `demo_h.py` | Démo H — bulle d'eau 3D en apesanteur modelable avec les deux mains |
 | `demo_k.py` | Démo K — galaxie spirale 3D tournante, déplaçable et inclinable avec les deux mains |
 | `demo_l.py` | Démo L — puzzle 3×3 : reconstituer linux.jpg en déplaçant les pièces avec l'index |
+| `demo_terre.py` | Démo Terre — globe terrestre 3D texturé, rotation contrôlée par le mouvement des deux mains |
 | `config.py` | Tous les paramètres ajustables centralisés (caméra, MediaPipe, démos) |
 
 Fonctions utilitaires dans `hand_motion.py` :
@@ -138,6 +140,17 @@ Fonctions utilitaires dans `hand_motion.py` :
 - La grille cible est toujours visible au centre pour guider le placement. Les pièces posées sont encadrées en vert.
 - Un compteur `X / 9` indique l'avancement ; un message de victoire apparaît quand le puzzle est complet.
 - Conseil : combiner avec `i` pour masquer le squelette et mieux voir les pièces.
+
+**Démo Terre — Globe terrestre 3D (touche `t`)**
+- Nécessite les **deux mains** simultanément : le globe apparaît au point milieu entre les deux paumes et disparaît en fondu si une main quitte le champ.
+- **Position** : suit le centre des deux paumes avec un ressort amorti.
+- **Taille** : proportionnelle à la distance entre les mains (`dist × 0.45`, clampée entre 60 et 250 px de rayon).
+- **Rotation yaw** (gauche/droite) : déplacer les mains horizontalement — le globe tourne dans le sens du mouvement, avec une inertie courte (~0.2 s).
+- **Rotation pitch** (avant/arrière) : déplacer les mains verticalement — monter les mains fait basculer le pôle nord vers soi, descendre l'éloigne.
+- Rendu : mapping sphérique vectorisé (NumPy) sur la texture 2K (`2k_earth_daymap.jpg`) — longitude via `arctan2`, latitude via `arcsin`.
+- Éclairage Lambertien (soleil en haut à gauche) : face éclairée claire, côté nuit à 4 % de luminosité.
+- Halo atmosphérique bleuté (cercle gaussien additif) + surbrillance spéculaire (ellipse gaussienne).
+- Conseil : combiner avec `i` pour masquer le squelette et profiter pleinement du rendu.
 
 **Démo K — Galaxie spirale 3D (touche `k`)**
 - Nécessite les **deux mains** simultanément : la galaxie apparaît au point milieu entre les deux paumes.
