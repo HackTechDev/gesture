@@ -18,6 +18,7 @@ import demo_h
 import demo_k
 import demo_l
 import demo_terre
+import demo_tetris
 from config import (
     CAMERA_INDEX, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS,
     MOVEMENT_THRESHOLD, FPS_SMOOTHING,
@@ -165,6 +166,10 @@ def main():
     show_terre = False
     terre      = None
 
+    # --- Démo Tetris ---
+    show_tetris = False
+    tetris      = None
+
     # --- Landmarks ---
     show_landmarks = True
 
@@ -296,6 +301,12 @@ def main():
                 demo_terre.update(terre, hands_by_side, w, h)
                 demo_terre.render(frame, terre, w, h)
 
+            if show_tetris:
+                if tetris is None:
+                    tetris = demo_tetris.new_tetris(w, h)
+                demo_tetris.update(tetris, hands_by_side, w, h)
+                demo_tetris.render(frame, tetris, w, h)
+
             # --- UI ---
             cv2.rectangle(frame, (0, h - 42), (w, h), (30, 30, 30), -1)
             cv2.putText(frame, status_text, (10, h - 12),
@@ -312,14 +323,15 @@ def main():
                 ("Galaxie",    show_k),
                 ("Puzzle",     show_l),
                 ("Terre",      show_terre),
+                ("Tetris",     show_tetris),
             ]):
                 color = (0, 220, 255) if active else (120, 120, 120)
                 state = "ON" if active else "OFF"
                 cv2.putText(frame, f"{label} : {state}", (10, 28 + row * 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes g:trainées h:bulle k:galaxie l:puzzle t:terre i:landmarks j:fullscreen q:quitter",
-                        (w - 1140, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (180, 180, 180), 1)
+            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes g:trainées h:bulle k:galaxie l:puzzle t:terre v:tetris i:landmarks j:fullscreen q:quitter",
+                        (w - 1210, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (180, 180, 180), 1)
 
             # --- FPS ---
             if len(fps_times) >= 2:
@@ -388,6 +400,13 @@ def main():
                 show_terre = not show_terre
                 if not show_terre:
                     terre = None
+            elif key == ord("v"):
+                if show_tetris and tetris is not None and tetris["game_over"]:
+                    tetris = demo_tetris.new_tetris(w, h)
+                else:
+                    show_tetris = not show_tetris
+                    if not show_tetris:
+                        tetris = None
             elif key == ord("i"):
                 show_landmarks = not show_landmarks
             elif key == ord("j"):

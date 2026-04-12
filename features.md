@@ -19,6 +19,7 @@ Touche de lancement : `.venv/bin/python hand_motion.py`
 | `k` | Galaxie spirale 3D | 2 |
 | `l` | Puzzle 3×3 (linux.jpg) | 1 |
 | `t` | Globe terrestre 3D texturé | 2 |
+| `v` | Jeu Tetris | 1 |
 
 ---
 
@@ -75,6 +76,16 @@ Touche de lancement : `.venv/bin/python hand_motion.py`
 - **Déposer** : poing fermé → magnétisme automatique si < 100 px de la case cible.
 - Timer **3 minutes** affiché en haut (vert → orange → rouge).
 - Compteur de pièces `X / 9` + message de victoire avec temps final.
+
+### Démo Tetris (touche `v`)
+- Jeu de Tetris classique : plateau 10×20, 7 tétrominos, rendu en incrustation sur la webcam.
+- **Index pointé** : la pièce se déplace vers la colonne ciblée par le doigt (mapping écran → plateau).
+- **Poing** : chute rapide (vitesse × 20).
+- **Main ouverte** : rotation horaire avec wall-kick (ajustement automatique si bloqué contre un mur).
+- **Pièce fantôme** : silhouette de destination pour anticiper le placement.
+- Score : 100 × (niveau+1) pour 1 ligne, 300 pour 2, 500 pour 3, 800 pour 4 (Tetris).
+- Niveau augmente toutes les 10 lignes (1 à 10), vitesse jusqu'à 0.06 s/cellule.
+- Appuyer sur `v` après Game Over relance une nouvelle partie.
 
 ### Démo Terre — Globe terrestre 3D (touche `t`)
 - **Deux mains** requises ; globe au milieu des paumes, taille proportionnelle à l'écart.

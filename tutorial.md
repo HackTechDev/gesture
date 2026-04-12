@@ -51,6 +51,7 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 | `k` | Activer / désactiver la galaxie spirale 3D |
 | `l` | Activer / désactiver le puzzle (linux.jpg) |
 | `t` | Activer / désactiver le globe terrestre 3D |
+| `v` | Activer / désactiver le jeu Tetris |
 | `i` | Afficher / masquer le squelette de la main (traits, points, flèche) |
 | `j` | Basculer en plein écran / fenêtré |
 | `q` | Quitter l'application |
@@ -74,6 +75,7 @@ Le projet est découpé en plusieurs fichiers, un par démo :
 | `demo_k.py` | Démo K — galaxie spirale 3D tournante, déplaçable et inclinable avec les deux mains |
 | `demo_l.py` | Démo L — puzzle 3×3 : reconstituer linux.jpg en déplaçant les pièces avec l'index |
 | `demo_terre.py` | Démo Terre — globe terrestre 3D texturé, rotation contrôlée par le mouvement des deux mains |
+| `demo_tetris.py` | Démo Tetris — jeu de Tetris contrôlé par les gestes (index = déplacement, poing = chute rapide, main ouverte = rotation) |
 | `config.py` | Tous les paramètres ajustables centralisés (caméra, MediaPipe, démos) |
 
 Fonctions utilitaires dans `hand_motion.py` :
@@ -153,6 +155,17 @@ Fonctions utilitaires dans `hand_motion.py` :
 - Éclairage Lambertien (soleil en haut à gauche) : face éclairée claire, côté nuit à 4 % de luminosité.
 - Halo atmosphérique bleuté (cercle gaussien additif) + surbrillance spéculaire (ellipse gaussienne).
 - Conseil : combiner avec `i` pour masquer le squelette et profiter pleinement du rendu.
+
+**Démo Tetris (touche `v`)**
+- Jeu de Tetris classique (plateau 10×20) rendu en incrustation sur la webcam.
+- **Déplacer** : pointer l'**index seul**, puis déplacer la main horizontalement — le doigt pointe vers la colonne cible, la pièce se déplace vers elle automatiquement.
+- **Chute rapide** : fermer la main en **poing** — la pièce tombe à grande vitesse.
+- **Rotation** : ouvrir la **main entière** (4 doigts étendus) — la pièce pivote d'un quart de tour (avec wall-kick basique).
+- **Pièce fantôme** : silhouette discrète indique où la pièce va atterrir.
+- Panneau d'info à droite : score, lignes effacées, niveau, pièce suivante.
+- Vitesse de chute augmente avec le niveau (1 ligne = 10 lignes cumulées).
+- **Game Over** : appuyer à nouveau sur `v` relance une nouvelle partie.
+- Conseil : combiner avec `i` pour masquer le squelette et voir le plateau plus clairement.
 
 **Démo K — Galaxie spirale 3D (touche `k`)**
 - Nécessite les **deux mains** simultanément : la galaxie apparaît au point milieu entre les deux paumes.
