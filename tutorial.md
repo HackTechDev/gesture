@@ -134,11 +134,13 @@ Fonctions utilitaires dans `hand_motion.py` :
 - Paramètres dans `config.py` : `BUBBLE_H_MIN_R`, `BUBBLE_H_MAX_R`.
 
 **Démo L — Puzzle (touche `l`)**
-- Charge `linux.jpg` et la découpe en **9 pièces** (grille 3×3), disposées aléatoirement à l'écran.
+- Charge `linux.jpg` et la découpe en **9 pièces** (grille 3×3) centrée à l'écran (~40 % de la fenêtre).
+- Les pièces sont disposées aléatoirement **à gauche et à droite** de la grille — jamais en dessous — pour faciliter leur sélection.
 - **Attraper** : pointer l'**index seul** sur une pièce — elle suit le bout du doigt.
-- **Déposer** : fermer la main en **poing** — si la pièce est à moins de 55 px de sa case cible, elle se cale automatiquement (magnétisme).
-- La grille cible est toujours visible au centre pour guider le placement. Les pièces posées sont encadrées en vert.
-- Un compteur `X / 9` indique l'avancement ; un message de victoire apparaît quand le puzzle est complet.
+- **Déposer** : fermer la main en **poing** — si la pièce est à moins de 100 px de sa case cible, elle se cale automatiquement (magnétisme).
+- La grille cible est toujours visible au centre. Les pièces posées sont encadrées en vert, la pièce tenue en cyan.
+- **Timer 3 min** : le temps restant est affiché en haut au centre (vert > 60 s, orange > 30 s, rouge ≤ 30 s). En cas de timeout, un message indique le score partiel.
+- Un compteur `X / 9` indique l'avancement ; un message de victoire avec le temps écoulé apparaît quand le puzzle est complet.
 - Conseil : combiner avec `i` pour masquer le squelette et mieux voir les pièces.
 
 **Démo Terre — Globe terrestre 3D (touche `t`)**

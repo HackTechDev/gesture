@@ -15,7 +15,7 @@ IMAGE_PATH    = "linux.jpg"
 GRID_ROWS     = 3
 GRID_COLS     = 3
 N_PIECES      = GRID_ROWS * GRID_COLS
-SNAP_DIST     = 55    # px — distance de magnétisme vers la case cible
+SNAP_DIST     = 100    # px — distance de magnétisme vers la case cible
 TIMER_SECONDS = 180   # durée du puzzle en secondes (3 min)
 
 # Couleurs
@@ -33,9 +33,9 @@ def new_puzzle(w, h):
     if img is None:
         return None
 
-    # Redimensionne l'image pour occuper ~55 % de la fenêtre
+    # Redimensionne l'image pour occuper ~40 % de la fenêtre (espace latéral pour les pièces)
     ih, iw = img.shape[:2]
-    scale  = min(w * 0.55 / iw, h * 0.55 / ih)
+    scale  = min(w * 0.40 / iw, h * 0.40 / ih)
     new_w  = int(iw * scale)
     new_h  = int(ih * scale)
     img    = cv2.resize(img, (new_w, new_h))
@@ -47,25 +47,37 @@ def new_puzzle(w, h):
     gx = (w - pw * GRID_COLS) // 2
     gy = (h - ph * GRID_ROWS) // 2
 
+    # Zones de placement : côtés gauche et droit, pas sous la grille
+    margin = 10
+    lx0 = 5
+    lx1 = max(lx0, gx - pw - margin)
+    rx0 = gx + pw * GRID_COLS + margin
+    rx1 = w - pw - 5
+    py0 = 5
+    py1 = max(py0 + 1, gy + ph * (GRID_ROWS - 1))  # haut de la dernière rangée
+
+    half  = N_PIECES // 2
+    sides = ["left"] * (N_PIECES - half) + ["right"] * half
+    random.shuffle(sides)
+
     pieces = []
+    side_idx = 0
     for row in range(GRID_ROWS):
         for col in range(GRID_COLS):
             piece_img = img[row * ph:(row + 1) * ph,
                             col * pw:(col + 1) * pw].copy()
-            # Position initiale aléatoire, hors de la zone cible
-            while True:
-                rx = random.randint(5, w - pw - 5)
-                ry = random.randint(5, h - ph - 5)
-                # Évite de placer la pièce dans la zone cible
-                if not (gx - pw <= rx <= gx + pw * GRID_COLS and
-                        gy - ph <= ry <= gy + ph * GRID_ROWS):
-                    break
+            if sides[side_idx] == "left":
+                px = random.randint(lx0, lx1)
+            else:
+                px = random.randint(rx0, max(rx0, rx1))
+            py = random.randint(py0, py1)
             pieces.append({
                 "img":      piece_img,
                 "grid_pos": (row, col),
-                "pos":      [float(rx), float(ry)],
+                "pos":      [float(px), float(py)],
                 "placed":   False,
             })
+            side_idx += 1
 
     random.shuffle(pieces)
 

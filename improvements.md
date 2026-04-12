@@ -39,6 +39,7 @@
 
 ## Démo L — Puzzle
 
+- [x] Pièces réparties sur les côtés gauche et droit de la grille (pas en dessous) pour faciliter la sélection
 - [ ] Niveaux : 3×3, 4×4, 5×5 (touche pour changer)
 - [ ] Sélection de l'image parmi plusieurs fichiers
 - [ ] Meilleur temps sauvegardé dans un fichier `scores.txt`
