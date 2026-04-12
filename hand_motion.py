@@ -55,6 +55,168 @@ clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
 
 
 # ---------------------------------------------------------------------------
+# Système d'intro (mode d'emploi avant chaque démo)
+# ---------------------------------------------------------------------------
+
+_CONFIRM_FRAMES = 20   # frames de main ouverte pour valider (~0.7 s à 30 fps)
+
+_INTROS = {
+    "a": {
+        "title": "Filaments néon",
+        "lines": [
+            "Nécessite les deux mains simultanément",
+            "Des filaments colorés relient vos doigts",
+        ],
+    },
+    "b": {
+        "title": "Bulles à éclater",
+        "lines": [
+            "Pincez pouce + index sur une bulle pour l'éclater",
+            "Éclater un maximum de bulles en 30 secondes",
+        ],
+    },
+    "c": {
+        "title": "Bulle physique",
+        "lines": [
+            "Approchez l'index de la bulle pour la pousser",
+            "Elle rebondit sur les bords de l'écran",
+        ],
+    },
+    "d": {
+        "title": "Dessin dans l'air",
+        "lines": [
+            "Index seul étendu  →  dessiner un trait",
+            "Main ouverte (4 doigts)  →  effacer le canvas",
+            "Auriculaire sur la palette (haut droite)  →  changer la couleur",
+        ],
+    },
+    "f": {
+        "title": "Reconnaissance de gestes",
+        "lines": [
+            "7 gestes reconnus :",
+            "Pouce levé · Victoire · Poing · Main ouverte",
+            "Index pointé · Metal · Dr Strange",
+        ],
+    },
+    "g": {
+        "title": "Traînées de mouvement",
+        "lines": [
+            "Bougez vos mains librement",
+            "Chaque bout de doigt laisse une traînée lumineuse colorée",
+        ],
+    },
+    "h": {
+        "title": "Bulle d'eau 3D",
+        "lines": [
+            "Nécessite les deux mains simultanément",
+            "La bulle apparaît entre vos paumes",
+            "Approchez les doigts pour déformer sa surface",
+        ],
+    },
+    "k": {
+        "title": "Galaxie spirale 3D",
+        "lines": [
+            "Nécessite les deux mains simultanément",
+            "Mains à la même hauteur  →  vue de tranche (bord)",
+            "Mains décalées verticalement  →  vue de face (bras spiraux)",
+        ],
+    },
+    "l": {
+        "title": "Puzzle 3×3",
+        "lines": [
+            "Index pointé sur une pièce  →  attraper",
+            "Poing  →  déposer (magnétisme automatique à < 100 px)",
+            "Reconstituez l'image complète en 3 minutes",
+        ],
+    },
+    "t": {
+        "title": "Globe terrestre 3D",
+        "lines": [
+            "Nécessite les deux mains simultanément",
+            "Mouvement horizontal  →  rotation gauche / droite",
+            "Mouvement vertical  →  rotation avant / arrière",
+        ],
+    },
+    "v": {
+        "title": "Tetris",
+        "lines": [
+            "Index pointé + déplacement horizontal  →  déplacer la pièce",
+            "Poing  →  chute rapide",
+            "Main ouverte  →  rotation de la pièce",
+        ],
+    },
+}
+
+
+def _make_intro(key):
+    d = _INTROS[key]
+    return {"key": key, "title": d["title"], "lines": d["lines"], "confirm": 0}
+
+
+def _is_open_hand(lm):
+    """Quatre doigts étendus (validation de l'intro)."""
+    return (lm[8].y  < lm[6].y  and
+            lm[12].y < lm[10].y and
+            lm[16].y < lm[14].y and
+            lm[20].y < lm[18].y)
+
+
+def _draw_intro(frame, intro, w, h, pct):
+    """Affiche la carte d'instructions en incrustation semi-transparente."""
+    # Fond sombre
+    ov = frame.copy()
+    cv2.rectangle(ov, (0, 0), (w, h), (8, 8, 20), -1)
+    cv2.addWeighted(ov, 0.78, frame, 0.22, 0, frame)
+
+    n_lines = len(intro["lines"])
+    card_w  = min(640, w - 80)
+    card_h  = 185 + n_lines * 38
+    cx      = (w - card_w) // 2
+    cy      = (h - card_h) // 2
+
+    # Fond de la carte
+    card_ov = frame.copy()
+    cv2.rectangle(card_ov, (cx, cy), (cx + card_w, cy + card_h), (28, 28, 48), -1)
+    cv2.addWeighted(card_ov, 0.88, frame, 0.12, 0, frame)
+    cv2.rectangle(frame, (cx, cy), (cx + card_w, cy + card_h), (90, 90, 130), 1)
+
+    # Titre
+    (tw, _), _ = cv2.getTextSize(intro["title"], cv2.FONT_HERSHEY_SIMPLEX, 0.95, 2)
+    cv2.putText(frame, intro["title"], ((w - tw) // 2, cy + 50),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.95, (0, 220, 255), 2)
+
+    # Séparateur haut
+    cv2.line(frame, (cx + 18, cy + 64), (cx + card_w - 18, cy + 64), (70, 70, 110), 1)
+
+    # Lignes d'instructions
+    for i, line in enumerate(intro["lines"]):
+        (lw, _), _ = cv2.getTextSize(line, cv2.FONT_HERSHEY_SIMPLEX, 0.62, 1)
+        cv2.putText(frame, line, ((w - lw) // 2, cy + 100 + i * 38),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.62, (210, 210, 210), 1)
+
+    # Séparateur bas
+    sep_y = cy + 112 + n_lines * 38
+    cv2.line(frame, (cx + 18, sep_y), (cx + card_w - 18, sep_y), (70, 70, 110), 1)
+
+    # Texte de validation
+    msg = "Ouvrez la main pour commencer"
+    (mw, _), _ = cv2.getTextSize(msg, cv2.FONT_HERSHEY_SIMPLEX, 0.68, 1)
+    cv2.putText(frame, msg, ((w - mw) // 2, sep_y + 32),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.68, (160, 255, 160), 1)
+
+    # Barre de progression
+    bar_y  = sep_y + 48
+    bar_x0 = cx + 18
+    bar_x1 = cx + card_w - 18
+    bar_len = bar_x1 - bar_x0
+    cv2.rectangle(frame, (bar_x0, bar_y), (bar_x1, bar_y + 10), (40, 40, 40), -1)
+    fill = int(bar_len * pct)
+    if fill > 0:
+        cv2.rectangle(frame, (bar_x0, bar_y), (bar_x0 + fill, bar_y + 10), (0, 200, 80), -1)
+    cv2.rectangle(frame, (bar_x0, bar_y), (bar_x1, bar_y + 10), (90, 90, 90), 1)
+
+
+# ---------------------------------------------------------------------------
 # Utilitaires communs
 # ---------------------------------------------------------------------------
 
@@ -170,6 +332,9 @@ def main():
     show_tetris = False
     tetris      = None
 
+    # --- Intro ---
+    pending_intro = None
+
     # --- Landmarks ---
     show_landmarks = True
 
@@ -227,85 +392,101 @@ def main():
                     side = results.handedness[idx][0].display_name
                     hands_by_side[side] = hand_landmarks
 
-                if show_d and canvas is not None:
-                    draw_color_idx, erased = demo_d.process(
-                        frame, hand_landmarks, w, h, canvas,
-                        prev_draw_pos, draw_color_idx, idx,
-                    )
-                    if erased:
-                        erase_flash = 12
+                # --- Traitements par main (seulement hors intro) ---
+                if pending_intro is None:
+                    if show_d and canvas is not None:
+                        draw_color_idx, erased = demo_d.process(
+                            frame, hand_landmarks, w, h, canvas,
+                            prev_draw_pos, draw_color_idx, idx,
+                        )
+                        if erased:
+                            erase_flash = 12
 
-                if show_f:
-                    demo_f.update_history(gesture_history, idx, hand_landmarks)
-                    wx = int(hand_landmarks[0].x * w)
-                    wy = int(hand_landmarks[0].y * h)
-                    hand_sizes[idx] = int(((cx - wx) ** 2 + (cy - wy) ** 2) ** 0.5)
+                    if show_f:
+                        demo_f.update_history(gesture_history, idx, hand_landmarks)
+                        wx = int(hand_landmarks[0].x * w)
+                        wy = int(hand_landmarks[0].y * h)
+                        hand_sizes[idx] = int(((cx - wx) ** 2 + (cy - wy) ** 2) ** 0.5)
 
-                if show_g:
-                    demo_g.update_trails(trail_history, idx, hand_landmarks, w, h)
+                    if show_g:
+                        demo_g.update_trails(trail_history, idx, hand_landmarks, w, h)
 
-                if show_c and bubble_c is not None:
-                    ix = int(hand_landmarks[8].x * w)
-                    iy = int(hand_landmarks[8].y * h)
-                    if idx in prev_index_c:
-                        demo_c.push_bubble_c(bubble_c, ix, iy, *prev_index_c[idx])
-                    prev_index_c[idx] = (ix, iy)
+                    if show_c and bubble_c is not None:
+                        ix = int(hand_landmarks[8].x * w)
+                        iy = int(hand_landmarks[8].y * h)
+                        if idx in prev_index_c:
+                            demo_c.push_bubble_c(bubble_c, ix, iy, *prev_index_c[idx])
+                        prev_index_c[idx] = (ix, iy)
 
-                if show_b and bubbles:
-                    score = demo_b.process(frame, hand_landmarks, w, h, bubbles, pops, score)
+                    if show_b and bubbles:
+                        score = demo_b.process(frame, hand_landmarks, w, h, bubbles, pops, score)
 
             prev_positions = current_positions
             if not show_c:
                 prev_index_c.clear()
 
-            # --- Rendu démos ---
-            if show_a and "Left" in hands_by_side and "Right" in hands_by_side:
-                demo_a.draw_filaments(frame, hands_by_side["Left"],
-                                      hands_by_side["Right"], w, h)
+            # --- Rendu démos (seulement hors intro) ---
+            if pending_intro is None:
+                if show_a and "Left" in hands_by_side and "Right" in hands_by_side:
+                    demo_a.draw_filaments(frame, hands_by_side["Left"],
+                                          hands_by_side["Right"], w, h)
 
-            if show_b:
-                demo_b.render(frame, bubbles, pops, score, game_start, w, h)
+                if show_b:
+                    demo_b.render(frame, bubbles, pops, score, game_start, w, h)
 
-            if show_d and canvas is not None:
-                erase_flash = demo_d.render(frame, canvas, draw_color_idx, erase_flash, w, h)
+                if show_d and canvas is not None:
+                    erase_flash = demo_d.render(frame, canvas, draw_color_idx, erase_flash, w, h)
 
-            if show_c and bubble_c is not None:
-                demo_c.update_bubble_c(bubble_c, w, h)
-                demo_c.draw_bubble_c(frame, bubble_c)
+                if show_c and bubble_c is not None:
+                    demo_c.update_bubble_c(bubble_c, w, h)
+                    demo_c.draw_bubble_c(frame, bubble_c)
 
-            active_ids = set(range(len(results.hand_landmarks or [])))
+                active_ids = set(range(len(results.hand_landmarks or [])))
 
-            if show_f:
-                demo_f.render(frame, gesture_history, active_ids, current_positions, hand_sizes, w, h)
+                if show_f:
+                    demo_f.render(frame, gesture_history, active_ids, current_positions, hand_sizes, w, h)
 
-            if show_g:
-                demo_g.render(frame, trail_history, active_ids, w, h)
+                if show_g:
+                    demo_g.render(frame, trail_history, active_ids, w, h)
 
-            if show_h and bubble_h is not None:
-                demo_h.update(bubble_h, hands_by_side, w, h)
-                demo_h.render(frame, bubble_h, w, h)
+                if show_h and bubble_h is not None:
+                    demo_h.update(bubble_h, hands_by_side, w, h)
+                    demo_h.render(frame, bubble_h, w, h)
 
-            if show_k and galaxy is not None:
-                demo_k.update(galaxy, hands_by_side, w, h)
-                demo_k.render(frame, galaxy, w, h)
+                if show_k and galaxy is not None:
+                    demo_k.update(galaxy, hands_by_side, w, h)
+                    demo_k.render(frame, galaxy, w, h)
 
-            if show_l:
-                if puzzle is None:
-                    puzzle = demo_l.new_puzzle(w, h)
-                demo_l.update(puzzle, hands_by_side, w, h)
-                demo_l.render(frame, puzzle, w, h)
+                if show_l:
+                    if puzzle is None:
+                        puzzle = demo_l.new_puzzle(w, h)
+                    demo_l.update(puzzle, hands_by_side, w, h)
+                    demo_l.render(frame, puzzle, w, h)
 
-            if show_terre:
-                if terre is None:
-                    terre = demo_terre.new_terre()
-                demo_terre.update(terre, hands_by_side, w, h)
-                demo_terre.render(frame, terre, w, h)
+                if show_terre:
+                    if terre is None:
+                        terre = demo_terre.new_terre()
+                    demo_terre.update(terre, hands_by_side, w, h)
+                    demo_terre.render(frame, terre, w, h)
 
-            if show_tetris:
-                if tetris is None:
-                    tetris = demo_tetris.new_tetris(w, h)
-                demo_tetris.update(tetris, hands_by_side, w, h)
-                demo_tetris.render(frame, tetris, w, h)
+                if show_tetris:
+                    if tetris is None:
+                        tetris = demo_tetris.new_tetris(w, h)
+                    demo_tetris.update(tetris, hands_by_side, w, h)
+                    demo_tetris.render(frame, tetris, w, h)
+
+            # --- Intro : détection main ouverte + affichage ---
+            if pending_intro is not None:
+                any_open = any(_is_open_hand(lm)
+                               for lm in (results.hand_landmarks or []))
+                if any_open:
+                    pending_intro["confirm"] += 1
+                else:
+                    pending_intro["confirm"] = 0
+                pct = min(1.0, pending_intro["confirm"] / _CONFIRM_FRAMES)
+                _draw_intro(frame, pending_intro, w, h, pct)
+                if pending_intro["confirm"] >= _CONFIRM_FRAMES:
+                    pending_intro = None
 
             # --- UI ---
             cv2.rectangle(frame, (0, h - 42), (w, h), (30, 30, 30), -1)
@@ -346,67 +527,117 @@ def main():
             if key == ord("q"):
                 break
             elif key == ord("a"):
-                show_a = not show_a
+                if show_a:
+                    show_a = False
+                    if pending_intro and pending_intro["key"] == "a":
+                        pending_intro = None
+                else:
+                    show_a = True
+                    pending_intro = _make_intro("a")
             elif key == ord("b"):
-                show_b = not show_b
                 if show_b:
+                    show_b = False
+                    bubbles, pops, score, game_start = [], [], 0, None
+                    if pending_intro and pending_intro["key"] == "b":
+                        pending_intro = None
+                else:
+                    show_b = True
                     bubbles    = [demo_b.new_bubble(w, h, [])]
                     for _ in range(BUBBLE_COUNT - 1):
                         bubbles.append(demo_b.new_bubble(w, h, bubbles))
                     pops, score, game_start = [], 0, time.time()
-                else:
-                    bubbles, pops, score, game_start = [], [], 0, None
+                    pending_intro = _make_intro("b")
             elif key == ord("c"):
-                show_c = not show_c
                 if show_c:
-                    bubble_c = demo_c.new_bubble_c(w, h)
-                else:
+                    show_c = False
                     bubble_c = None
                     prev_index_c.clear()
+                    if pending_intro and pending_intro["key"] == "c":
+                        pending_intro = None
+                else:
+                    show_c = True
+                    bubble_c = demo_c.new_bubble_c(w, h)
+                    pending_intro = _make_intro("c")
             elif key == ord("d"):
-                show_d = not show_d
                 if show_d:
+                    show_d = False
+                    canvas = None
+                    prev_draw_pos.clear()
+                    if pending_intro and pending_intro["key"] == "d":
+                        pending_intro = None
+                else:
+                    show_d = True
                     canvas = np.zeros((h, w, 3), dtype=np.uint8)
                     prev_draw_pos.clear()
                     erase_flash = 0
-                else:
-                    canvas = None
-                    prev_draw_pos.clear()
+                    pending_intro = _make_intro("d")
             elif key == ord("f"):
-                show_f = not show_f
-                if not show_f:
+                if show_f:
+                    show_f = False
                     gesture_history.clear()
+                    if pending_intro and pending_intro["key"] == "f":
+                        pending_intro = None
+                else:
+                    show_f = True
+                    pending_intro = _make_intro("f")
             elif key == ord("g"):
-                show_g = not show_g
-                if not show_g:
+                if show_g:
+                    show_g = False
                     trail_history.clear()
+                    if pending_intro and pending_intro["key"] == "g":
+                        pending_intro = None
+                else:
+                    show_g = True
+                    pending_intro = _make_intro("g")
             elif key == ord("h"):
-                show_h = not show_h
                 if show_h:
-                    bubble_h = demo_h.new_bubble_h()
-                else:
+                    show_h = False
                     bubble_h = None
-            elif key == ord("k"):
-                show_k = not show_k
-                if show_k:
-                    galaxy = demo_k.new_galaxy()
+                    if pending_intro and pending_intro["key"] == "h":
+                        pending_intro = None
                 else:
+                    show_h = True
+                    bubble_h = demo_h.new_bubble_h()
+                    pending_intro = _make_intro("h")
+            elif key == ord("k"):
+                if show_k:
+                    show_k = False
                     galaxy = None
+                    if pending_intro and pending_intro["key"] == "k":
+                        pending_intro = None
+                else:
+                    show_k = True
+                    galaxy = demo_k.new_galaxy()
+                    pending_intro = _make_intro("k")
             elif key == ord("l"):
-                show_l = not show_l
-                if not show_l:
+                if show_l:
+                    show_l = False
                     puzzle = None
+                    if pending_intro and pending_intro["key"] == "l":
+                        pending_intro = None
+                else:
+                    show_l = True
+                    pending_intro = _make_intro("l")
             elif key == ord("t"):
-                show_terre = not show_terre
-                if not show_terre:
+                if show_terre:
+                    show_terre = False
                     terre = None
+                    if pending_intro and pending_intro["key"] == "t":
+                        pending_intro = None
+                else:
+                    show_terre = True
+                    pending_intro = _make_intro("t")
             elif key == ord("v"):
                 if show_tetris and tetris is not None and tetris["game_over"]:
                     tetris = demo_tetris.new_tetris(w, h)
+                elif show_tetris:
+                    show_tetris = False
+                    tetris = None
+                    if pending_intro and pending_intro["key"] == "v":
+                        pending_intro = None
                 else:
-                    show_tetris = not show_tetris
-                    if not show_tetris:
-                        tetris = None
+                    show_tetris = True
+                    pending_intro = _make_intro("v")
             elif key == ord("i"):
                 show_landmarks = not show_landmarks
             elif key == ord("j"):
