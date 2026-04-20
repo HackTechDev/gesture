@@ -19,6 +19,7 @@ import demo_k
 import demo_l
 import demo_terre
 import demo_tetris
+import demo_flame
 from config import (
     CAMERA_INDEX, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS,
     MOVEMENT_THRESHOLD, FPS_SMOOTHING,
@@ -143,6 +144,13 @@ _INTROS = {
             "Index pointé + déplacement horizontal  →  déplacer la pièce",
             "Poing  →  chute rapide",
             "Main ouverte  →  rotation de la pièce",
+        ],
+    },
+    "e": {
+        "title": "Flammes",
+        "lines": [
+            "Ouvrez la main  →  flammes sur les bouts des doigts",
+            "Fermez la main  →  les flammes s'éteignent",
         ],
     },
 }
@@ -332,6 +340,10 @@ def main():
     show_tetris = False
     tetris      = None
 
+    # --- Démo Flame ---
+    show_flame = False
+    flame      = None
+
     # --- Intro ---
     pending_intro = None
 
@@ -475,6 +487,10 @@ def main():
                     demo_tetris.update(tetris, hands_by_side, w, h)
                     demo_tetris.render(frame, tetris, w, h)
 
+                if show_flame:
+                    demo_flame.update(flame, hands_by_side, w, h)
+                    demo_flame.render(frame, flame, w, h)
+
             # --- Intro : détection main ouverte + affichage ---
             if pending_intro is not None:
                 any_open = any(_is_open_hand(lm)
@@ -505,13 +521,14 @@ def main():
                 ("Puzzle",     show_l),
                 ("Terre",      show_terre),
                 ("Tetris",     show_tetris),
+                ("Flammes",    show_flame),
             ]):
                 color = (0, 220, 255) if active else (120, 120, 120)
                 state = "ON" if active else "OFF"
                 cv2.putText(frame, f"{label} : {state}", (10, 28 + row * 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin f:gestes g:trainées h:bulle k:galaxie l:puzzle t:terre v:tetris i:landmarks j:fullscreen q:quitter",
+            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin e:flammes f:gestes g:trainées h:bulle k:galaxie l:puzzle t:terre v:tetris i:landmarks j:fullscreen q:quitter",
                         (w - 1210, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (180, 180, 180), 1)
 
             # --- FPS ---
@@ -571,6 +588,16 @@ def main():
                     prev_draw_pos.clear()
                     erase_flash = 0
                     pending_intro = _make_intro("d")
+            elif key == ord("e"):
+                if show_flame:
+                    show_flame = False
+                    flame = None
+                    if pending_intro and pending_intro["key"] == "e":
+                        pending_intro = None
+                else:
+                    show_flame = True
+                    flame = demo_flame.new_flame()
+                    pending_intro = _make_intro("e")
             elif key == ord("f"):
                 if show_f:
                     show_f = False

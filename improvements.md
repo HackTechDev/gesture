@@ -51,6 +51,13 @@
 - [ ] Afficher le meilleur score (high score) entre les parties
 - [ ] Son quand une ligne est effacée (via `sounddevice`)
 
+## Démo Flame (touche `e`)
+
+- [x] Flammes jaillissant des 5 bouts de doigts quand la main est ouverte
+- [ ] Couleur de flamme configurable (feu bleu, violet, vert)
+- [ ] Intensité proportionnelle à la vitesse de déplacement de la main
+- [ ] Interaction entre les flammes des deux mains (fusion, explosion)
+
 ## Nouvelles démos
 
 - [x] Démo D — Dessin dans l'air : tracer avec l'index, effacer en ouvrant la main

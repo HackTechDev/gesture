@@ -10,6 +10,7 @@ Touche de lancement : `.venv/bin/python hand_motion.py`
 | Touche | Démo | Mains requises |
 |--------|------|----------------|
 | `a` | Filaments néon entre les deux mains | 2 |
+| `e` | Flammes sur les bouts des doigts | 1 ou 2 |
 | `b` | Bulles à éclater (score + minuterie) | 1 ou 2 |
 | `c` | Bulle physique avec rebonds | 1 |
 | `d` | Dessin dans l'air + palette de couleurs | 1 |
@@ -24,6 +25,13 @@ Touche de lancement : `.venv/bin/python hand_motion.py`
 ---
 
 ## Détail des démos
+
+### Démo E — Flammes (touche `e`)
+- **Main ouverte** (4 doigts étendus) → flammes jaillissent des 5 bouts de doigts.
+- Fermer la main → les flammes s'éteignent progressivement.
+- Particules physiques : montée avec turbulence latérale, dégradé blanc → jaune → orange → rouge.
+- Halo lumineux par fusion additive (GaussianBlur additif).
+- Compatible avec toutes les autres démos (ex. Traînées + Flammes).
 
 ### Démo A — Filaments (touche `a`)
 - Nécessite **deux mains** simultanées.
