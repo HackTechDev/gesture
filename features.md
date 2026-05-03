@@ -11,6 +11,7 @@ Touche de lancement : `.venv/bin/python hand_motion.py`
 |--------|------|----------------|
 | `a` | Filaments néon entre les deux mains | 2 |
 | `e` | Flammes sur les bouts des doigts | 1 ou 2 |
+| `n` | Corde et boule (physique gravité + glissement) | 2 |
 | `p` | Zone vidéo pixelisée (polygone pouce+index) | 2 |
 | `b` | Bulles à éclater (score + minuterie) | 1 ou 2 |
 | `c` | Bulle physique avec rebonds | 1 |
@@ -26,6 +27,13 @@ Touche de lancement : `.venv/bin/python hand_motion.py`
 ---
 
 ## Détail des démos
+
+### Démo N — Corde et boule (touche `n`)
+- **Deux mains** requises : la corde se tend entre les deux index.
+- La boule tombe en chute libre avec gravité.
+- Quand elle touche la corde, elle glisse le long de la pente (inclinaison = vitesse de glissement).
+- Si la boule dépasse un bout de la corde (hors segment), elle tombe librement.
+- La boule respawn en haut automatiquement quand elle touche le bas de l'écran.
 
 ### Démo P — Pixelisation (touche `p`)
 - **Deux mains** requises.

@@ -21,6 +21,7 @@ import demo_terre
 import demo_tetris
 import demo_flame
 import demo_pixel
+import demo_rope
 from config import (
     CAMERA_INDEX, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS,
     MOVEMENT_THRESHOLD, FPS_SMOOTHING,
@@ -145,6 +146,15 @@ _INTROS = {
             "Index pointé + déplacement horizontal  →  déplacer la pièce",
             "Poing  →  chute rapide",
             "Main ouverte  →  rotation de la pièce",
+        ],
+    },
+    "n": {
+        "title": "Corde et boule",
+        "lines": [
+            "Nécessite les deux mains simultanément",
+            "La corde se tend entre vos deux index",
+            "La boule tombe et glisse sur la corde inclinée",
+            "Hors de la corde → la boule tombe librement",
         ],
     },
     "p": {
@@ -349,6 +359,10 @@ def main():
     show_tetris = False
     tetris      = None
 
+    # --- Démo Rope ---
+    show_rope  = False
+    rope_state = None
+
     # --- Démo Pixel ---
     show_pixel = False
 
@@ -499,6 +513,12 @@ def main():
                     demo_tetris.update(tetris, hands_by_side, w, h)
                     demo_tetris.render(frame, tetris, w, h)
 
+                if show_rope:
+                    if rope_state is None:
+                        rope_state = demo_rope.new_rope(w, h)
+                    demo_rope.update(rope_state, hands_by_side, w, h)
+                    demo_rope.render(frame, rope_state, hands_by_side, w, h)
+
                 if show_pixel:
                     demo_pixel.render(frame, hands_by_side, w, h)
 
@@ -536,6 +556,7 @@ def main():
                 ("Puzzle",     show_l),
                 ("Terre",      show_terre),
                 ("Tetris",     show_tetris),
+                ("Corde",      show_rope),
                 ("Pixel",      show_pixel),
                 ("Flammes",    show_flame),
             ]):
@@ -544,7 +565,7 @@ def main():
                 cv2.putText(frame, f"{label} : {state}", (10, 28 + row * 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin e:flammes f:gestes g:trainées h:bulle k:galaxie l:puzzle p:pixel t:terre v:tetris i:landmarks j:fullscreen q:quitter",
+            cv2.putText(frame, "a:filaments b:bulles c:physique d:dessin e:flammes f:gestes g:trainées h:bulle k:galaxie l:puzzle n:corde p:pixel t:terre v:tetris i:landmarks j:fullscreen q:quitter",
                         (w - 1210, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (180, 180, 180), 1)
 
             # --- FPS ---
@@ -604,6 +625,16 @@ def main():
                     prev_draw_pos.clear()
                     erase_flash = 0
                     pending_intro = _make_intro("d")
+            elif key == ord("n"):
+                if show_rope:
+                    show_rope = False
+                    rope_state = None
+                    if pending_intro and pending_intro["key"] == "n":
+                        pending_intro = None
+                else:
+                    show_rope  = True
+                    rope_state = None
+                    pending_intro = _make_intro("n")
             elif key == ord("p"):
                 if show_pixel:
                     show_pixel = False
