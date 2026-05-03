@@ -1,9 +1,16 @@
-"""Démo Corde — Boule soumise à la gravité, retenue par la corde entre les deux index."""
+"""Démo Corde — Boule soumise à la gravité, retenue par la corde entre les deux index.
+
+Physique de glissement explicite :
+  a_t = g · ty  (composante de la gravité le long de la pente)
+  ty > 0 → corde descend vers la droite → boule glisse à droite
+  ty < 0 → corde monte vers la droite  → boule glisse à gauche
+  Vitesse d'équilibre ∝ sin(inclinaison) / (1 - FRICTION)
+"""
 import cv2
 
-_GRAVITY  = 0.38   # px/frame²
+_GRAVITY  = 0.42   # px/frame²
 _BALL_R   = 22     # rayon de la boule en px
-_FRICTION = 0.991  # frottement tangentiel sur la corde
+_FRICTION = 0.97   # frottement tangentiel (équilibre atteint en ~33 frames)
 _BOUNCE   = 0.20   # restitution sur les bords de l'écran
 
 
@@ -17,19 +24,15 @@ def new_rope(w, h):
 
 
 def update(state, hands_by_side, w, h):
-    # Gravité + déplacement
-    state["vy"] += _GRAVITY
-    state["bx"] += state["vx"]
-    state["by"] += state["vy"]
-
     left  = hands_by_side.get("Left")
     right = hands_by_side.get("Right")
+
     if left is not None and right is not None:
-        px = int(left[8].x  * w)
-        py = int(left[8].y  * h)
-        qx = int(right[8].x * w)
-        qy = int(right[8].y * h)
-        _collide(state, px, py, qx, qy)
+        px = int(left[8].x  * w);  py = int(left[8].y  * h)
+        qx = int(right[8].x * w);  qy = int(right[8].y * h)
+        _step_with_rope(state, px, py, qx, qy)
+    else:
+        _step_free(state)
 
     # Bords de l'écran
     if state["bx"] < _BALL_R:
@@ -42,8 +45,8 @@ def update(state, hands_by_side, w, h):
         state["by"] = _BALL_R
         state["vy"] = abs(state["vy"]) * _BOUNCE
     elif state["by"] > h - _BALL_R:
-        # Respawn en haut quand la boule touche le bas
-        state["bx"] = float(w // 2)
+        # Respawn en haut
+        state["bx"] = float(w) / 2
         state["by"] = 60.0
         state["vx"] = 0.0
         state["vy"] = 0.0
@@ -54,10 +57,8 @@ def render(frame, state, hands_by_side, w, h):
     right = hands_by_side.get("Right")
 
     if left is not None and right is not None:
-        px = int(left[8].x  * w)
-        py = int(left[8].y  * h)
-        qx = int(right[8].x * w)
-        qy = int(right[8].y * h)
+        px = int(left[8].x  * w);  py = int(left[8].y  * h)
+        qx = int(right[8].x * w);  qy = int(right[8].y * h)
 
         # Corde : ombre + corps brun + reflet clair
         cv2.line(frame, (px + 2, py + 2), (qx + 2, qy + 2), (25, 15, 5),    5)
@@ -72,57 +73,74 @@ def render(frame, state, hands_by_side, w, h):
     # Boule (ombre + corps + dégradé + reflet)
     bx, by = int(state["bx"]), int(state["by"])
     r = _BALL_R
-    cv2.circle(frame, (bx + 4, by + 5), r,        (12, 8, 8),         -1)
-    cv2.circle(frame, (bx, by),         r,        (40, 80, 195),       -1)
-    cv2.circle(frame, (bx - 3, by - 3), r * 2//3, (65, 115, 225),     -1)
-    cv2.circle(frame, (bx - r//3, by - r//3), r//4, (205, 230, 255),  -1)
-    cv2.circle(frame, (bx, by),         r,        (85, 135, 255),       2)
+    cv2.circle(frame, (bx + 4, by + 5), r,          (12, 8, 8),         -1)
+    cv2.circle(frame, (bx, by),         r,          (40, 80, 195),       -1)
+    cv2.circle(frame, (bx - 3, by - 3), r * 2 // 3, (65, 115, 225),    -1)
+    cv2.circle(frame, (bx - r//3, by - r//3), r//4, (205, 230, 255),   -1)
+    cv2.circle(frame, (bx, by),         r,          (85, 135, 255),       2)
 
 
 # ── Physique interne ──────────────────────────────────────────────────────────
 
-def _collide(state, px, py, qx, qy):
-    """Détecte et résout la collision boule↔corde."""
+def _step_free(state):
+    """Chute libre : gravité pleine, pas de contrainte."""
+    state["vy"] += _GRAVITY
+    state["bx"] += state["vx"]
+    state["by"] += state["vy"]
+
+
+def _step_with_rope(state, px, py, qx, qy):
+    """Un pas de simulation avec corde présente.
+
+    Si la boule est sur le segment : physique de glissement (a_t = g·ty).
+    Si la boule est hors du segment : chute libre.
+    """
     dx, dy = qx - px, qy - py
     len_sq = dx*dx + dy*dy
     if len_sq < 16:
+        _step_free(state)
         return
 
     rope_len = len_sq ** 0.5
+    tx, ty   = dx / rope_len, dy / rope_len   # tangente normalisée
 
-    # Paramètre de projection sur la droite portant la corde (0 = P1, 1 = P2)
-    t = ((state["bx"] - px)*dx + (state["by"] - py)*dy) / len_sq
-
-    # Point le plus proche sur le segment [P1, P2]
-    tc = max(0.0, min(1.0, t))
-    cx = px + tc * dx
-    cy = py + tc * dy
-
-    # Vecteur (point proche → boule)
-    rx = state["bx"] - cx
-    ry = state["by"] - cy
-    dist = (rx*rx + ry*ry) ** 0.5
-
-    # Normale perpendiculaire à la corde, orientée "vers le haut" (y décroissant)
-    nx, ny = -dy / rope_len, dx / rope_len
-    if ny > 0:          # ny > 0 → pointe vers le bas en coords écran → inverser
+    # Normale perpendiculaire à la corde, orientée vers le haut (ny < 0 en screen)
+    nx, ny = -ty, tx
+    if ny > 0:          # pointe vers le bas → inverser
         nx, ny = -nx, -ny
 
-    # Distance signée : positive = boule au-dessus de la corde
-    signed = (rx * nx + ry * ny) if dist > 0.001 else 0.0
+    # Projection du centre de la boule sur la droite portant la corde (en px depuis P1)
+    rel_x = state["bx"] - px
+    rel_y = state["by"] - py
+    t_px  = rel_x * tx + rel_y * ty
+    tc    = max(0.0, min(rope_len, t_px))
+    cx    = px + tc * tx
+    cy    = py + tc * ty
 
-    # Collision seulement si la boule est dans l'étendue du segment ET sous la surface
-    if 0.0 <= t <= 1.0 and signed < _BALL_R:
-        # Replacer la boule à la surface supérieure de la corde
+    # Distance signée (positive = au-dessus de la corde)
+    ox     = state["bx"] - cx
+    oy     = state["by"] - cy
+    dist   = (ox*ox + oy*oy) ** 0.5
+    signed = (ox * nx + oy * ny) if dist > 0.001 else 0.0
+
+    if 0.0 <= t_px <= rope_len and signed < _BALL_R:
+        # ── Boule sur la corde ──────────────────────────────────────────────
+        # Coller à la surface supérieure
         state["bx"] = cx + nx * _BALL_R
         state["by"] = cy + ny * _BALL_R
 
-        # Annuler la composante de vitesse dirigée vers la corde
-        v_n = state["vx"] * nx + state["vy"] * ny
-        if v_n < 0:
-            state["vx"] -= v_n * nx
-            state["vy"] -= v_n * ny
+        # Vitesse tangentielle actuelle (les composantes normales sont ignorées)
+        v_t = state["vx"] * tx + state["vy"] * ty
 
-        # Frottement sur la composante tangentielle (glissement)
-        state["vx"] *= _FRICTION
-        state["vy"] *= _FRICTION
+        # Accélération tangentielle = projection de la gravité sur la pente :
+        #   a_t = (0, g) · (tx, ty) = g * ty
+        # Plus l'inclinaison est grande, plus |ty| est grand, plus la boule accélère.
+        v_t = (v_t + _GRAVITY * ty) * _FRICTION
+
+        state["vx"] = v_t * tx
+        state["vy"] = v_t * ty
+        state["bx"] += state["vx"]
+        state["by"] += state["vy"]
+    else:
+        # ── Hors corde : chute libre ────────────────────────────────────────
+        _step_free(state)
