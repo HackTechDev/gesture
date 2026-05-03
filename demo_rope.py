@@ -7,11 +7,10 @@ Physique de glissement explicite :
   Vitesse d'équilibre ∝ sin(inclinaison) / (1 - FRICTION)
 """
 import cv2
+from config import ROPE_GRAVITY, ROPE_FRICTION
 
-_GRAVITY  = 0.42   # px/frame²
-_BALL_R   = 22     # rayon de la boule en px
-_FRICTION = 0.97   # frottement tangentiel (équilibre atteint en ~33 frames)
-_BOUNCE   = 0.20   # restitution sur les bords de l'écran
+_BALL_R  = 22    # rayon de la boule en px
+_BOUNCE  = 0.20  # restitution sur les bords de l'écran
 
 
 def new_rope(w, h):
@@ -84,7 +83,7 @@ def render(frame, state, hands_by_side, w, h):
 
 def _step_free(state):
     """Chute libre : gravité pleine, pas de contrainte."""
-    state["vy"] += _GRAVITY
+    state["vy"] += ROPE_GRAVITY
     state["bx"] += state["vx"]
     state["by"] += state["vy"]
 
@@ -135,7 +134,7 @@ def _step_with_rope(state, px, py, qx, qy):
         # Accélération tangentielle = projection de la gravité sur la pente :
         #   a_t = (0, g) · (tx, ty) = g * ty
         # Plus l'inclinaison est grande, plus |ty| est grand, plus la boule accélère.
-        v_t = (v_t + _GRAVITY * ty) * _FRICTION
+        v_t = (v_t + ROPE_GRAVITY * ty) * ROPE_FRICTION
 
         state["vx"] = v_t * tx
         state["vy"] = v_t * ty
