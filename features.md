@@ -11,6 +11,7 @@ Touche de lancement : `.venv/bin/python hand_motion.py`
 |--------|------|----------------|
 | `a` | Filaments néon entre les deux mains | 2 |
 | `e` | Flammes sur les bouts des doigts | 1 ou 2 |
+| `p` | Zone vidéo pixelisée (polygone pouce+index) | 2 |
 | `b` | Bulles à éclater (score + minuterie) | 1 ou 2 |
 | `c` | Bulle physique avec rebonds | 1 |
 | `d` | Dessin dans l'air + palette de couleurs | 1 |
@@ -25,6 +26,12 @@ Touche de lancement : `.venv/bin/python hand_motion.py`
 ---
 
 ## Détail des démos
+
+### Démo P — Pixelisation (touche `p`)
+- **Deux mains** requises.
+- Les 4 points pouce + index de chaque main délimitent un polygone convexe.
+- L'intérieur du polygone est pixelisé (blocs 16×16 px) en temps réel.
+- Contour cyan + marqueurs aux 4 coins pour visualiser la zone.
 
 ### Démo E — Flammes (touche `e`)
 - **Main ouverte** (4 doigts étendus) → flammes jaillissent des 5 bouts de doigts.
