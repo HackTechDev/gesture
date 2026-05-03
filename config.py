@@ -97,7 +97,7 @@ BUBBLE_H_MAX_R = 240   # rayon maximal (pixels)
 # ---------------------------------------------------------------------------
 # Démo N — Corde et boule
 # ---------------------------------------------------------------------------
-ROPE_GRAVITY  = 0.55   # accélération gravitationnelle en px/frame²
+ROPE_GRAVITY  = 2.50   # accélération gravitationnelle en px/frame²
 ROPE_FRICTION = 0.97   # frottement tangentiel (0 = arrêt immédiat, 1 = sans frottement)
 
 # ---------------------------------------------------------------------------
