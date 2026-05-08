@@ -93,15 +93,18 @@ def _draw(stdscr, cursor, selected):
 
     if selected:
         order  = [k for k, *_ in DEMOS if k in selected]
-        status = "  Actives : " + "  +  ".join(
+        status = "  Lancement : " + "  +  ".join(
             f"{k} ({_NAMES[k]})" for k in order
         )
+        safe_addstr(fy + 1, 0, status, curses.color_pair(_C_HEADER))
     else:
-        status = "  Aucune sélection — toutes les démos accessibles via les touches"
-    safe_addstr(fy + 1, 0, status, curses.color_pair(_C_HEADER))
+        cur_key  = DEMOS[cursor][0]
+        cur_name = _NAMES[cur_key]
+        safe_addstr(fy + 1, 0, f"  Lancement : {cur_key} ({cur_name})",
+                    curses.color_pair(_C_HEADER))
 
-    shortcuts = ("  ↑↓ Naviguer    ESPACE Sélectionner    "
-                 "A Tout / Rien    ENTRÉE Lancer    Q Quitter")
+    shortcuts = ("  ENTRÉE Lancer    ESPACE Multi-sélection    "
+                 "A Tout / Rien    ↑↓ Naviguer    Q Quitter")
     safe_addstr(fy + 2, 0, shortcuts,
                 curses.color_pair(_C_DIM) | curses.A_DIM)
 
@@ -135,7 +138,7 @@ def _run_tui(stdscr):
             else:
                 selected = {d[0] for d in DEMOS}
         elif key in (curses.KEY_ENTER, 10, 13):
-            return selected
+            return selected if selected else {DEMOS[cursor][0]}
         elif key in (ord("q"), ord("Q"), 27):
             return None
 
