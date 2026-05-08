@@ -278,7 +278,7 @@ def palm_center(hand_landmarks, w, h):
 # Main
 # ---------------------------------------------------------------------------
 
-def main():
+def main(initial_demos=frozenset()):
     download_model()
 
     options = HandLandmarkerOptions(
@@ -379,6 +379,48 @@ def main():
     # --- Fenêtre ---
     fullscreen = False
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
+
+    # --- Pré-activation des démos choisies dans le menu ----------------------
+    for _k in initial_demos:
+        if _k == "a":
+            show_a = True
+        elif _k == "b":
+            show_b     = True
+            bubbles    = [demo_b.new_bubble(w_cam, h_cam, [])]
+            for _ in range(BUBBLE_COUNT - 1):
+                bubbles.append(demo_b.new_bubble(w_cam, h_cam, bubbles))
+            pops, score, game_start = [], 0, time.time()
+        elif _k == "c":
+            show_c   = True
+            bubble_c = demo_c.new_bubble_c(w_cam, h_cam)
+        elif _k == "d":
+            show_d      = True
+            canvas      = np.zeros((h_cam, w_cam, 3), dtype=np.uint8)
+            erase_flash = 0
+        elif _k == "e":
+            show_flame = True
+            flame      = demo_flame.new_flame()
+        elif _k == "f":
+            show_f = True
+        elif _k == "g":
+            show_g = True
+        elif _k == "h":
+            show_h   = True
+            bubble_h = demo_h.new_bubble_h()
+        elif _k == "k":
+            show_k = True
+            galaxy  = demo_k.new_galaxy()
+        elif _k == "l":
+            show_l = True
+        elif _k == "n":
+            show_rope = True
+        elif _k == "p":
+            show_pixel = True
+        elif _k == "t":
+            show_terre = True
+        elif _k == "v":
+            show_tetris = True
+    # -------------------------------------------------------------------------
 
     with HandLandmarker.create_from_options(options) as landmarker:
         while True:
