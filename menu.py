@@ -146,14 +146,15 @@ def _run_tui(stdscr):
 
 
 def main():
-    result = curses.wrapper(_run_tui)
-
-    if result is None:
-        print("Annulé.")
-        sys.exit(0)
-
     import hand_motion
-    hand_motion.main(initial_demos=result)
+
+    while True:
+        result = curses.wrapper(_run_tui)
+
+        if result is None:
+            break
+
+        hand_motion.main(initial_demos=result)
 
 
 if __name__ == "__main__":
