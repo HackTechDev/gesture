@@ -29,6 +29,24 @@ python3 -m venv .venv
 
 ## 4. Lancer l'application
 
+### Via le menu interactif (recommandé)
+
+```bash
+.venv/bin/python menu.py
+```
+
+Un sélecteur en mode terminal s'affiche :
+
+- `↑` / `↓` — naviguer dans la liste des démos
+- `ENTRÉE` — lancer la démo en surbrillance
+- `ESPACE` — cocher / décocher (multi-sélection)
+- `A` — tout sélectionner / tout désélectionner
+- `Q` / `ESC` — quitter le menu
+
+Après fermeture de la fenêtre (`q`), le menu réapparaît automatiquement.
+
+### Lancement direct (toutes les démos disponibles via les touches)
+
 ```bash
 .venv/bin/python hand_motion.py
 ```
@@ -45,16 +63,19 @@ Au premier lancement, le modèle `hand_landmarker_full.task` est téléchargé a
 | `b` | Activer / désactiver la démo bulles à éclater |
 | `c` | Activer / désactiver la démo bulle physique |
 | `d` | Activer / désactiver le dessin dans l'air |
+| `e` | Activer / désactiver les flammes sur les bouts des doigts |
 | `f` | Activer / désactiver la reconnaissance de gestes |
 | `g` | Activer / désactiver les traînées de mouvement sur les doigts |
 | `h` | Activer / désactiver la bulle d'eau modelable |
 | `k` | Activer / désactiver la galaxie spirale 3D |
 | `l` | Activer / désactiver le puzzle (linux.jpg) |
+| `n` | Activer / désactiver la corde et boule physique |
+| `p` | Activer / désactiver la pixelisation vidéo |
 | `t` | Activer / désactiver le globe terrestre 3D |
 | `v` | Activer / désactiver le jeu Tetris |
 | `i` | Afficher / masquer le squelette de la main (traits, points, flèche) |
 | `j` | Basculer en plein écran / fenêtré |
-| `q` | Quitter l'application |
+| `q` | Quitter / retourner au menu |
 
 ---
 
@@ -64,16 +85,20 @@ Le projet est découpé en plusieurs fichiers, un par démo :
 
 | Fichier | Rôle |
 |---|---|
+| `menu.py` | Sélecteur de démos en mode terminal (TUI curses) — point d'entrée recommandé |
 | `hand_motion.py` | Orchestrateur principal : capture webcam, détection MediaPipe, boucle de rendu, touches clavier |
 | `demo_a.py` | Démo A — filaments néon entre les extrémités des deux mains |
 | `demo_b.py` | Démo B — bulles brillantes à éclater par pincement (jeu avec score et minuterie) |
 | `demo_c.py` | Démo C — bulle physique poussée par l'index, avec rebonds |
 | `demo_d.py` | Démo D — dessin dans l'air avec l'index, effacement main ouverte, palette de couleurs |
+| `demo_flame.py` | Démo E — flammes jaillissant des bouts de doigts quand la main est ouverte |
 | `demo_f.py` | Démo F — reconnaissance de gestes (Pouce levé, Victoire, Poing, Main ouverte, Index pointé, Metal) |
 | `demo_g.py` | Démo G — traînées de mouvement lumineuses sur les 5 bouts de doigts |
 | `demo_h.py` | Démo H — bulle d'eau 3D en apesanteur modelable avec les deux mains |
 | `demo_k.py` | Démo K — galaxie spirale 3D tournante, déplaçable et inclinable avec les deux mains |
 | `demo_l.py` | Démo L — puzzle 3×3 : reconstituer linux.jpg en déplaçant les pièces avec l'index |
+| `demo_rope.py` | Démo N — corde physique entre les deux index avec boule soumise à la gravité |
+| `demo_pixel.py` | Démo P — zone vidéo pixelisée délimitée par le pouce et l'index des deux mains |
 | `demo_terre.py` | Démo Terre — globe terrestre 3D texturé, rotation contrôlée par le mouvement des deux mains |
 | `demo_tetris.py` | Démo Tetris — jeu de Tetris contrôlé par les gestes (index = déplacement, poing = chute rapide, main ouverte = rotation) |
 | `config.py` | Tous les paramètres ajustables centralisés (caméra, MediaPipe, démos) |
@@ -86,7 +111,7 @@ Fonctions utilitaires dans `hand_motion.py` :
 | `enhance_frame()` | Prétraitement CLAHE pour compenser l'éclairage inégal |
 | `draw_hand()` | Tracé des 21 landmarks et connexions de la main |
 | `palm_center()` | Calcule le centre de la paume (landmark 9) |
-| `main()` | Boucle principale : capture, détection, rendu, touches |
+| `main(initial_demos)` | Boucle principale : capture, détection, rendu, touches. `initial_demos` (set de clés) pré-active des démos au démarrage — utilisé par `menu.py` |
 
 ---
 
@@ -178,6 +203,29 @@ Fonctions utilitaires dans `hand_motion.py` :
 - Rendu 3D par tri de profondeur (`np.argsort`) et facteur de luminosité selon la coordonnée Z.
 - Performance : les étoiles de taille 1 (≈ 1 200) sont dessinées en batch NumPy direct sur le buffer de frame ; les étoiles de taille 2+ utilisent `cv2.circle`.
 - Conseil : combiner avec `i` pour masquer le squelette et profiter pleinement de l'effet.
+
+**Démo E — Flammes (touche `e`)**
+- **Main ouverte** (4 doigts étendus) → émission de particules depuis les 5 bouts de doigts.
+- Fermer la main → les flammes s'éteignent progressivement (particules existantes continuent leur cycle).
+- Dégradé blanc → jaune → orange → rouge en fonction de la durée de vie de chaque particule.
+- Halo lumineux obtenu par fusion additive d'un `GaussianBlur` sur le calque de particules.
+- Compatible avec toutes les autres démos simultanément.
+- Paramètres internes : `_MAX_PARTICLES = 500`, `_EMIT_PER_TIP = 3`.
+
+**Démo N — Corde et boule (touche `n`)**
+- Nécessite les **deux mains** : la corde se tend entre les deux index (landmark 8).
+- La boule tombe en chute libre avec gravité `ROPE_GRAVITY` (config.py).
+- Quand la boule touche la corde par le dessus : elle glisse le long de la pente, `a_t = g × ty` (composante tangentielle de la gravité) ; frottement `ROPE_FRICTION`.
+- Quand la corde monte vers la boule (utilisateur lève les mains) : rebond proportionnel à la vitesse d'approche.
+- Hors du segment : chute libre.
+- La boule respawn en haut au centre quand elle touche le bas de l'écran.
+- Paramètres dans `config.py` : `ROPE_GRAVITY`, `ROPE_FRICTION`.
+
+**Démo P — Pixelisation (touche `p`)**
+- Nécessite les **deux mains** : 4 points (pouce + index de chaque main) délimitent un polygone convexe (`cv2.convexHull`).
+- La région intérieure est pixelisée en blocs `_PIXEL_SIZE × _PIXEL_SIZE` (défaut : 16 px) par double redimensionnement `INTER_LINEAR` → `INTER_NEAREST`.
+- Un masque pixel-perfect garantit que seul l'intérieur du polygone est modifié.
+- Contour cyan + marqueurs aux 4 coins pour visualiser la zone.
 
 **Démo G — Traînées de mouvement (touche `g`)**
 - Chaque bout de doigt (pouce, index, majeur, annulaire, auriculaire) laisse une traînée lumineuse sur les `TRAIL_LENGTH` dernières positions (défaut : 22 frames).

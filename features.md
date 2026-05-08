@@ -1,7 +1,25 @@
 # Features — Gesture Recognition
 
-Application de reconnaissance gestuelle en temps réel (webcam + MediaPipe + OpenCV).  
-Touche de lancement : `.venv/bin/python hand_motion.py`
+Application de reconnaissance gestuelle en temps réel (webcam + MediaPipe + OpenCV).
+
+**Lancement recommandé :** `.venv/bin/python menu.py`  
+**Lancement direct :** `.venv/bin/python hand_motion.py`
+
+---
+
+## Menu de sélection (menu.py)
+
+Sélecteur interactif en mode terminal (TUI curses) :
+
+| Touche | Action |
+|--------|--------|
+| `↑` / `↓` | Naviguer dans la liste |
+| `ENTRÉE` | Lancer la démo en surbrillance (ou toutes les démos cochées) |
+| `ESPACE` | Cocher / décocher une démo (multi-sélection) |
+| `A` | Tout sélectionner / tout désélectionner |
+| `Q` / `ESC` | Quitter le menu |
+
+Après fermeture de la fenêtre OpenCV (`q`), le menu réapparaît automatiquement.
 
 ---
 

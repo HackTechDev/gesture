@@ -61,18 +61,19 @@
 ## Nouvelles démos
 
 - [x] Démo D — Dessin dans l'air : tracer avec l'index, effacer en ouvrant la main
-- [ ] Démo E — Contrôle de volume : écarter/rapprocher pouce et index pour simuler un curseur (barre de progression + contrôle volume système via `pactl`)
+- [ ] Démo E (volume) — Contrôle de volume : écarter/rapprocher pouce et index pour simuler un curseur (barre de progression + contrôle volume système via `pactl`)
+- [x] Démo E — Flammes sur les bouts des doigts (main ouverte), particules physiques avec dégradé et halo néon
 - [x] Démo F — Reconnaissance de gestes : détecter des formes précises (pouce levé, poing, victoire) et afficher leur nom
 - [x] Démo F — Geste Dr Strange : cercle magique animé (pentagramme + runes + étincelles) adapté à la taille de la main
 - [x] Démo G — Traînées de mouvement (motion trail) sur les 5 bouts de doigts avec halo néon
 - [x] Démo K — Galaxie spirale 3D en couleur tournante entre les mains, déplaçable et inclinable
 - [x] Démo L — Puzzle 3×3 : reconstituer linux.jpg en déplaçant les pièces avec l'index
-- [x] Démo Tetris (touche `v`) : jeu de Tetris contrôlé par index (déplacement), poing (chute rapide), main ouverte (rotation), déposer en faisant un poing
+- [x] Démo N — Corde physique entre les deux index : boule soumise à la gravité, glissement sur la pente, rebond par le bas
+- [x] Démo P — Pixelisation : zone vidéo pixelisée à l'intérieur du polygone pouce+index des deux mains
+- [x] Démo Tetris (touche `v`) : jeu de Tetris contrôlé par index (déplacement), poing (chute rapide), main ouverte (rotation)
 - [x] Démo Terre — Globe terrestre 3D texturé (2k_earth_daymap.jpg), rotation yaw/pitch par mouvement des deux mains, éclairage Lambertien + atmosphère
 - [ ] Démo M — Piano dans l'air : 5 touches virtuelles (une par doigt), joue une note quand le bout du doigt touche une zone (`sounddevice`)
-- [ ] Démo N — Marionnette : personnage dont les membres suivent les angles des doigts et des mains en temps réel
 - [ ] Démo O — Peinture de particules : chaque fingertip émet un jet de particules colorées soumises à la gravité
-- [ ] Démo P — Miroir magique : zoom, rotation et distorsion de l'image webcam pilotés par les gestes des deux mains
 
 ## Qualité visuelle
 
@@ -85,6 +86,7 @@
 
 - [x] Touche `i` : masquer / afficher le squelette de la main
 - [x] Touche `j` : basculer en plein écran / fenêtré
+- [x] Menu TUI terminal (`menu.py`) : sélection des démos au lancement, retour au menu automatique après fermeture
 - [ ] Menu principal gestuel : naviguer entre les démos en pointant un menu à l'écran, sans clavier
 - [ ] Panneau latéral semi-transparent redessiné (statuts, FPS, touches actives)
 
